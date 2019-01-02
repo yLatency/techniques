@@ -1,5 +1,28 @@
 from gurobipy import Model, GRB
+from functools import reduce
+from pyspark.sql.functions import col
+from sklearn.metrics import  roc_curve
 
+
+
+def createThresholdsDict(traces, backends, frontend ,frontendSLA):
+    maxs = {c: traces.select(c).rdd.max()[0]
+            for c in backends}
+    mins = {c: traces.select(c).rdd.min()[0]
+            for c in backends}
+    normalizedTrace = reduce(lambda df, c: df.withColumn(c, (col(c) - mins[c]) / (maxs[c] - mins[c])),
+                             backends,
+                             traces)
+    y = [1 if row[0]>frontendSLA else 0
+         for row in traces.select(frontend).collect()]
+    thresholdsDict, fprDict, tprDict = {}, {}, {}
+    for aBackend in backends:
+        scores = [row[0] for row in normalizedTrace.select(aBackend).collect()]
+        fpr, tpr, thresholds = roc_curve(y, scores)
+        thresholdsDict[aBackend] = thresholds[:0:-1]
+        fprDict[aBackend] = [float(fpr_) for fpr_ in fpr[:0:-1]]
+        tprDict[aBackend] = [float(tpr_) for tpr_ in tpr[:0:-1]]
+    return thresholdsDict, tprDict, fprDict
 
 class MIPThresholdsSelector:
     def __init__(self, thresholds,
