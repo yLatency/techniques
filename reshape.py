@@ -99,12 +99,3 @@ def craeteServerSpansWithClientsDuration(spans):
                              'left_outer')
             .drop('parentId')
             .na.fill(0))
-
-
-day = date(2018,11,14)
-
-spans = loadSpansByDay(day)
-
-endpointTraces = createEndpointTraces(spans)
-
-endpointTraces.write.parquet('data/test.parquet')
