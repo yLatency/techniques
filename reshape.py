@@ -1,21 +1,9 @@
-from pyspark import SparkConf
 from pyspark.sql import functions as f, SparkSession, DataFrame
-from datetime import date, datetime, timedelta, time
+from datetime import datetime, timedelta, time
 from functools import reduce
 
-conf = SparkConf()
 
-spark = (SparkSession.builder
-         .master("local[*]")
-         .appName("My app")
-         .config("spark.executor.memory", "40G")
-         .config('spark.sql.catalogImplementation', 'hive')
-         .config("spark.driver.memory", "30G")
-         .config("spark.driver.extraClassPath", "/home/luca/lib/elasticsearch-spark-20_2.11-6.4.1.jar")
-         .getOrCreate())
-
-
-def loadSpansByInterval(from_, to):
+def loadSpansByInterval(from_, to, spark):
     fromTimestamp = int(from_.timestamp() * 1000000)
     toTimestamp = int(to.timestamp() * 1000000)
     return (spark.read.format("es")
@@ -31,9 +19,9 @@ def loadSpansByInterval(from_, to):
             .filter(f.col('timestamp').between(fromTimestamp, toTimestamp)))
 
 
-def loadSpansByDay(day):
+def loadSpansByDay(day, spark):
     return reduce(DataFrame.union,
-                  [loadSpansByInterval(from_, to) for from_, to in HoursOfTheDay(day)])
+                  [loadSpansByInterval(from_, to, spark) for from_, to in HoursOfTheDay(day)])
 
 
 class HoursOfTheDay:
@@ -85,7 +73,7 @@ def filterClientSpans(spans):
             .drop('kind'))
 
 
-def createClientsDuration(serverSpans, clientSpans):
+def createClientsDuration(clientSpans):
     return (clientSpans.groupBy('parentId')
             .agg(f.sum('duration').alias('clients_duration')))
 
@@ -93,7 +81,7 @@ def createClientsDuration(serverSpans, clientSpans):
 def craeteServerSpansWithClientsDuration(spans):
     serverSpans = filterServerSpans(spans)
     clientSpans = filterClientSpans(spans)
-    clientsDuration = createClientsDuration(serverSpans, clientSpans)
+    clientsDuration = createClientsDuration(clientSpans)
     return (serverSpans.join(clientsDuration,
                              serverSpans.id == clientsDuration.parentId,
                              'left_outer')
