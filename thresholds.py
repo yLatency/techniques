@@ -1,125 +1,66 @@
-from gurobipy import Model, GRB
 from functools import reduce
 from pyspark.sql.functions import col
-from sklearn.metrics import  roc_curve
+from sklearn.metrics import roc_curve
+from sklearn.cluster import KMeans
+import numpy as np
+from abc import ABC, abstractmethod
 
 
+class Selector(ABC):
+    def __init__(self, traces, backends, frontend, frontendSLA):
+        self.backends = backends
+        self.thresholdsDict = {}
+        self.tprDict = {}
+        self.fprDict = {}
+        self._createThresholdsDict(traces, backends, frontend, frontendSLA)
 
-def createThresholdsDict(traces, backends, frontend ,frontendSLA):
-    maxs = {c: traces.select(c).rdd.max()[0]
-            for c in backends}
-    mins = {c: traces.select(c).rdd.min()[0]
-            for c in backends}
-    normalizedTrace = reduce(lambda df, c: df.withColumn(c, (col(c) - mins[c]) / (maxs[c] - mins[c])),
-                             backends,
-                             traces)
-    y = [1 if row[0]>frontendSLA else 0
-         for row in traces.select(frontend).collect()]
-    thresholdsDict, fprDict, tprDict = {}, {}, {}
-    for aBackend in backends:
-        scores = [row[0] for row in normalizedTrace.select(aBackend).collect()]
-        fpr, tpr, thresholds = roc_curve(y, scores)
-        thresholdsDict[aBackend] = thresholds[:0:-1]
-        fprDict[aBackend] = [float(fpr_) for fpr_ in fpr[:0:-1]]
-        tprDict[aBackend] = [float(tpr_) for tpr_ in tpr[:0:-1]]
-    return thresholdsDict, tprDict, fprDict
+    def _createThresholdsDict(self, traces, backends, frontend, frontendSLA):
+        maxs = {c: traces.select(c).rdd.max()[0]
+                for c in backends}
+        mins = {c: traces.select(c).rdd.min()[0]
+                for c in backends}
+        normalizedTrace = reduce(lambda df, c: df.withColumn(c, (col(c) - mins[c]) / (maxs[c] - mins[c])),
+                                 backends,
+                                 traces)
+        y = [1 if row[0] > frontendSLA else 0
+             for row in traces.select(frontend).collect()]
+        for aBackend in backends:
+            scores = [row[0] for row in normalizedTrace.select(aBackend).collect()]
+            fpr, tpr, thresholds = roc_curve(y, scores)
+            self.thresholdsDict[aBackend] = thresholds[:0:-1]
+            self.fprDict[aBackend] = [float(fpr_) for fpr_ in fpr[:0:-1]]
+            self.tprDict[aBackend] = [float(tpr_) for tpr_ in tpr[:0:-1]]
 
-class MIPThresholdsSelector:
-    def __init__(self, thresholds,
-                 tpr, fpr, k):
-        self.thresholds = thresholds
-        self.k = k
-        self.tpr = tpr
-        self.fpr = fpr
-        self.initModel()
+    @abstractmethod
+    def select(self, k):
+        pass
 
-    def initModel(self):
-        self.m = Model("m")
-        self.createVars()
-        self.addConstrs()
-        self.setObj()
 
-    def createVars(self):
-        m, n, k = self.m, len(self.thresholds) - 1, self.k
-        self.x = m.addVars(n, k, vtype=GRB.BINARY, name="x")
-        self.zt = m.addVars(k, vtype=GRB.CONTINUOUS, name="zt")
-        self.zf = m.addVars(k, vtype=GRB.CONTINUOUS, name="zf")
-        self.yt = m.addVars(k, vtype=GRB.CONTINUOUS, name="yt")
-        self.yf = m.addVars(k, vtype=GRB.CONTINUOUS, name="yf")
-        self.ytmax = m.addVar(vtype=GRB.CONTINUOUS, name='ytmax')
-        self.yfmax = m.addVar(vtype=GRB.CONTINUOUS, name='yfmax')
-        self.ytmin = m.addVar(vtype=GRB.CONTINUOUS, name='ytmin')
-        self.yfmin = m.addVar(vtype=GRB.CONTINUOUS, name='yfmin')
-        self.st = m.addVar(vtype=GRB.CONTINUOUS, name="st")
-        self.sf = m.addVar(vtype=GRB.CONTINUOUS, name="sf")
+class KMeansSelector(Selector):
+    def select(self, k):
+        thresholdDict = {}
+        for aBackend in self.backends:
+            thresholds = self.thresholdsDict[aBackend]
+            if k + 1 >= (len(thresholds)):
+                thresholdDict[aBackend] = thresholds
+                continue
+            tpr = self.tprDict[aBackend]
+            fpr = self.fprDict[aBackend]
+            X = list(zip(tpr[1:], fpr[1:]))
+            distances = KMeans(n_clusters=k, random_state=0).fit_transform(X)
+            indices = [np.argsort(distances[:, i])[0] for i in range(k)]
+            thresholdDict[aBackend] = [thresholds[0]] + sorted(thresholds[i + 1] for i in indices)
+        return thresholdDict
 
-    def addConstrs(self):
-        self.addXConstrs()
-        self.addZConstrs()
-        self.addYConstrs()
-        self.addYMaxMinConstrs()
-        self.addSConstrs()
 
-    def addXConstrs(self):
-        n = len(self.thresholds) - 1
-        self.m.addConstrs((self.x.sum('*', i) == 1
-                           for i in range(self.k)), 'c1')
-        self.m.addConstrs((self.x.sum(i, '*') <= 1
-                           for i in range(n)), 'c2')
-
-    def addZConstrs(self):
-        for i in range(self.k):
-            coeffTP, coeffFP = self.createCoeffs(i)
-            self.m.addConstr(self.x.prod(coeffTP, '*', i) == self.zt[i],
-                             'c3.%d' % i)
-            self.m.addConstr(self.x.prod(coeffFP, '*', i) == self.zf[i],
-                             'c4.%d' % i)
-            if i == 0:
-                self.m.addConstr(self.tpr[i] >= self.zt[i],
-                                 'c5.%d' % i)
-                self.m.addConstr(self.fpr[i] >= self.zf[i],
-                                 'c6.%d' % i)
+class RandSelector(Selector):
+    def select(self, k):
+        thresholdDict = {}
+        for aBackend in self.backends:
+            thresholds = self.thresholdsDict[aBackend]
+            if k + 1 >= (len(thresholds)):
+                thresholdDict[aBackend] = thresholds
             else:
-                self.m.addConstr(self.zt[i - 1] >= self.zt[i],
-                                 'c5.%d' % i)
-                self.m.addConstr(self.zf[i - 1] >= self.zf[i],
-                                 'c6.%d' % i)
-
-    def addYConstrs(self):
-        self.m.addConstr(self.tpr[0] - self.zt[0] == self.yt[0], 'c7.0')
-        self.m.addConstr(self.fpr[0] - self.zf[0] == self.yf[0], 'c8.0')
-        for i in range(1, self.k):
-            self.m.addConstr(self.zt[i - 1] - self.zt[i] == self.yt[i], 'c7.%d' % i)
-            self.m.addConstr(self.zf[i - 1] - self.zf[i] == self.yf[i], 'c8.%d' % i)
-
-    def addYMaxMinConstrs(self):
-        self.m.addGenConstrMax(self.ytmax, self.yt, name='c.9')
-        self.m.addGenConstrMax(self.yfmax, self.yf, name='c.10')
-        self.m.addGenConstrMin(self.ytmin, self.yt, name='c.11')
-        self.m.addGenConstrMin(self.yfmin, self.yf, name='c.12')
-
-    def addSConstrs(self):
-        self.m.addConstr(self.zt[self.k - 1] - self.tpr[-1] == self.st, 'c13')
-        self.m.addConstr(self.zf[self.k - 1] - self.fpr[-1] == self.sf, 'c14')
-
-    def createCoeffs(self, i):
-        tpr, fpr = self.tpr[1:], self.fpr[1:]
-        coeffTP = {(j, i): tpr_ for j, tpr_ in enumerate(tpr)}
-        coeffFP = {(j, i): fpr_ for j, fpr_ in enumerate(fpr)}
-        return coeffTP, coeffFP
-
-    def setObj(self):
-        obj = (self.sf - self.yfmin) + (self.yfmax - self.yfmin) + (self.ytmax - self.ytmin) + (self.st - self.ytmin)
-        self.m.setObjective(obj, GRB.MINIMIZE)
-
-    def compute(self):
-        self.m.optimize()
-        selectedThresholds = [0]
-        for i, j in self.x:
-            if self.x[i, j].X == 1:
-                selectedThresholds.append(self.thresholds[i + 1])
-        return selectedThresholds
-
-
-
-
+                selected = np.random.choice(thresholds[1:], size=k, replace=False)
+                thresholdDict[aBackend] = sorted([thresholds[0]] + list(selected))
+        return thresholdDict
