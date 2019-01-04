@@ -6,24 +6,38 @@ import numpy as np
 from abc import ABC, abstractmethod
 
 
+class Normalizer:
+    def __init__(self, backends, traces):
+        self.maxs = {c: traces.select(c).rdd.max()[0]
+                     for c in backends}
+        self.mins = {c: traces.select(c).rdd.min()[0]
+                     for c in backends}
+        self.traces = traces
+        self.backends = backends
+
+    # Max-min normalization for backends columns (others columns remain unchanged)
+    def createNormalizedTrace(self):
+        normalizedTrace = reduce(
+            lambda df, c: df.withColumn(c, (col(c) - self.mins[c]) / (self.maxs[c] - self.mins[c])),
+            self.backends,
+            self.traces)
+        return normalizedTrace
+
+    def denormalizesThreshold(self, threshold, backend):
+        return threshold * (self.maxs[backend] - self.mins[backend]) + self.mins[backend]
+
+
 class Selector(ABC):
-    def __init__(self, traces, backends, frontend, frontendSLA):
+    def __init__(self, normalizedTrace, backends, frontend, frontendSLA):
         self.backends = backends
         self.thresholdsDict = {}
         self.tprDict = {}
         self.fprDict = {}
-        self._createThresholdsDict(traces, backends, frontend, frontendSLA)
+        self._createThresholdsDict(normalizedTrace, backends, frontend, frontendSLA)
 
-    def _createThresholdsDict(self, traces, backends, frontend, frontendSLA):
-        maxs = {c: traces.select(c).rdd.max()[0]
-                for c in backends}
-        mins = {c: traces.select(c).rdd.min()[0]
-                for c in backends}
-        normalizedTrace = reduce(lambda df, c: df.withColumn(c, (col(c) - mins[c]) / (maxs[c] - mins[c])),
-                                 backends,
-                                 traces)
+    def _createThresholdsDict(self, normalizedTrace, backends, frontend, frontendSLA):
         y = [1 if row[0] > frontendSLA else 0
-             for row in traces.select(frontend).collect()]
+             for row in normalizedTrace.select(frontend).collect()]
         for aBackend in backends:
             scores = [row[0] for row in normalizedTrace.select(aBackend).collect()]
             fpr, tpr, thresholds = roc_curve(y, scores)
