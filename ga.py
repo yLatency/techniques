@@ -190,12 +190,12 @@ class GA:
         if self.mode == self.RANDOM:
             sel = RandSelector(self.normalizedTrace,
                                 self.backends,
-                                self.backends,
+                                self.frontend,
                                 self.frontendSLA)
         else:
             sel = KMeansSelector(self.normalizedTrace,
                                 self.backends,
-                                self.backends,
+                                self.frontend,
                                 self.frontendSLA)
         return sel
 
