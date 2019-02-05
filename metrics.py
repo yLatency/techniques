@@ -10,6 +10,8 @@ class Metrics:
         self.thresholdDict = dict(zip(backends, thresholds))
         self.frontend = frontend
         self.frontendSLA = frontendSLA
+        if self.posCount <= 0:
+            raise Exception('No positives')
 
     def _countAboveThresholds(self, traces, features):
         filtered = reduce(lambda df, b: df.filter(col(b) >= self.thresholdDict[b]),

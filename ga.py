@@ -70,6 +70,8 @@ class FitnessUtils:
         self.backends = backends
         self.cache = cache
         self.p = bin(self.getTPBitString(self.backends[0], 0)).count('1')
+        if self.p <= 0:
+            raise Exception('No positives')
 
     def countOnesInConjunctedBitStrings(self, ind, getter):
         bit = reduce(lambda bits, bt: bits & getter(*bt),
