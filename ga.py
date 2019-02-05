@@ -2,6 +2,8 @@ from functools import reduce
 from pyspark.sql.functions import col, when, collect_list, concat_ws
 from deap import base, creator, tools, algorithms
 
+from thresholds import Normalizer, RandSelector, KMeansSelector
+
 
 class CacheMaker:
     def __init__(self, traces, backends,
@@ -101,7 +103,7 @@ class FitnessUtils:
         return 2 * (prec * rec) / (prec + rec) if prec > 0 or rec > 0 else 0
 
 
-class GA:
+class GAImpl:
     def __init__(self, backends, thresholdsDict, cache):
         self.backends = backends
         self.thresholdsDict = thresholdsDict
@@ -167,3 +169,47 @@ class GA:
                                            verbose=None)
         return [(self.genoToPheno(ind), self.fitnessUtils.computeFMeasure(ind))
                 for ind in res]
+
+
+class GA:
+    KMEANS = 1
+    RANDOM = 2
+    def __init__(self, traces, backends,
+                 frontend, frontendSLA, mode=1, k=10):
+        normalizer = Normalizer(backends, traces)
+        self.normalizedTrace = normalizer.createNormalizedTrace()
+        self.backends = backends
+        self.frontend = frontend
+        self.frontendSLA = frontendSLA
+        self.mode = mode
+        self.k = k
+
+    def getSelector(self):
+        sel = None
+
+        if self.mode == self.RANDOM:
+            sel = RandSelector(self.normalizedTrace,
+                                self.backends,
+                                self.backends,
+                                self.frontendSLA)
+        else:
+            sel = KMeansSelector(self.normalizedTrace,
+                                self.backends,
+                                self.backends,
+                                self.frontendSLA)
+        return sel
+
+    def createCache(self, thresholdsDict):
+        cacheMaker = CacheMaker(self.normalizedTrace,
+                                self.backends,
+                                self.frontend,
+                                self.frontendSLA)
+        return cacheMaker.create(thresholdsDict)
+
+
+    def compute(self):
+        sel = self.getSelector()
+        thresholdsDict = sel.select(self.k)
+        cache = self.createCache(thresholdsDict)
+        ga = GAImpl(self.backends, thresholdsDict, cache)
+        return max(ga.compute(), key=lambda x: x[1])

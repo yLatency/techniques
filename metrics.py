@@ -23,11 +23,11 @@ class Metrics:
 
     def compute(self, features):
         tp, fp = self._computeTpAndFp(features)
-        recall = prec = tp / self.posCount
-        precision = rec = tp / (tp + fp) if (tp + fp) > 0 else 0
+        rec = tp / self.posCount
+        prec = tp / (tp + fp) if (tp + fp) > 0 else 0
         fmeasure = 2 * (prec * rec) / (prec + rec) if prec > 0 or rec > 0 else 0
         support = tp + fp
-        return fmeasure, precision, recall, support
+        return fmeasure, prec, rec, support
 
 
 class Explanation:
