@@ -24,7 +24,7 @@ class Normalizer:
         return normalizedTrace
 
     def denormalizesThreshold(self, threshold, backend):
-        return threshold * (self.maxs[backend] - self.mins[backend]) + self.mins[backend]
+        return round(threshold * (self.maxs[backend] - self.mins[backend]) + self.mins[backend])
 
 
 class Selector(ABC):
