@@ -7,11 +7,12 @@ from thresholds import Normalizer, RandSelector, KMeansSelector
 
 class CacheMaker:
     def __init__(self, traces, backends,
-                 frontend, frontendSLA):
+                 frontend, from_, to):
         self.traces = traces
         self.frontend = frontend
         self.backends = backends
-        self.frontendSLA = frontendSLA
+        self.from_ = from_
+        self.to = to
 
     def tpCol(self, index):
         return 'tp-%d' % index
@@ -22,8 +23,8 @@ class CacheMaker:
     def withColsTpFp(self, df, enumThreshold, aBackend):
         index, threshold = enumThreshold
         aboveThresholdCond = col(aBackend) >= threshold
-        tpCond = aboveThresholdCond & (col(self.frontend) > self.frontendSLA)
-        fpCond = aboveThresholdCond & (col(self.frontend) <= self.frontendSLA)
+        tpCond = aboveThresholdCond & (col(self.frontend) > self.from_) & (col(self.frontend) <= self.to)
+        fpCond = aboveThresholdCond & ((col(self.frontend) <= self.from_) | (col(self.frontend) > self.to))
         whenTrueOneElseZero = lambda cond: when(cond, '1').otherwise('0')
         return (df.withColumn(self.tpCol(index), whenTrueOneElseZero(tpCond))
                 .withColumn(self.fpCol(index), whenTrueOneElseZero(fpCond)))
@@ -169,20 +170,22 @@ class GAImpl:
                                            stats=None,
                                            ngen=self.toolbox.max_gen,
                                            verbose=None)
-        return [(self.genoToPheno(ind), self.fitnessUtils.computeFMeasure(ind))
+        return [(self.genoToPheno(ind), self.fitnessUtils.computeFMeasure(ind), *self.fitnessUtils.computePrecRec(ind))
                 for ind in res]
 
 
 class GA:
     KMEANS = 1
     RANDOM = 2
+
     def __init__(self, traces, backends,
-                 frontend, frontendSLA, mode=1, k=10):
+                 frontend, from_, to, mode=1, k=10):
         normalizer = Normalizer(backends, traces)
         self.normalizedTrace = normalizer.createNormalizedTrace()
         self.backends = backends
         self.frontend = frontend
-        self.frontendSLA = frontendSLA
+        self.from_ = from_
+        self.to = to
         self.mode = mode
         self.k = k
 
@@ -191,21 +194,24 @@ class GA:
 
         if self.mode == self.RANDOM:
             sel = RandSelector(self.normalizedTrace,
-                                self.backends,
-                                self.frontend,
-                                self.frontendSLA)
+                               self.backends,
+                               self.frontend,
+                               self.from_,
+                               self.to)
         else:
             sel = KMeansSelector(self.normalizedTrace,
-                                self.backends,
-                                self.frontend,
-                                self.frontendSLA)
+                                 self.backends,
+                                 self.frontend,
+                                 self.from_,
+                                 self.to)
         return sel
 
     def createCache(self, thresholdsDict):
         cacheMaker = CacheMaker(self.normalizedTrace,
                                 self.backends,
                                 self.frontend,
-                                self.frontendSLA)
+                                self.from_,
+                                self.to)
         return cacheMaker.create(thresholdsDict)
 
 

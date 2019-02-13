@@ -3,13 +3,14 @@ from pyspark.sql.functions import col
 
 class Metrics:
     def __init__(self, traces, backends,
-                 thresholds, frontend, frontendSLA):
-        self.posTraces = traces.filter(col(frontend) > frontendSLA)
-        self.negTraces = traces.filter(col(frontend) <= frontendSLA)
+                 thresholds, frontend, from_, to):
+        self.posTraces = traces.filter((col(frontend) > from_) & (col(frontend) <= to))
+        self.negTraces = traces.filter((col(frontend) <= from_) | (col(frontend) > to))
         self.posCount = self.posTraces.count()
         self.thresholdDict = dict(zip(backends, thresholds))
         self.frontend = frontend
-        self.frontendSLA = frontendSLA
+        self.from_ = from_
+        self.to = to
         if self.posCount <= 0:
             raise Exception('No positives')
 

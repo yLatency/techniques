@@ -28,17 +28,17 @@ class Normalizer:
 
 
 class Selector(ABC):
-    def __init__(self, normalizedTrace, backends, frontend, frontendSLA):
+    def __init__(self, normalizedTrace, backends, frontend, from_, to):
         self.backends = backends
-        self.p = normalizedTrace.filter(col(frontend)> frontendSLA).count()
-        self.n = normalizedTrace.filter(col(frontend)<= frontendSLA).count()
+        self.p = normalizedTrace.filter((col(frontend) > from_) & (col(frontend) <= to)).count()
+        self.n = normalizedTrace.count() - self.p
         self.thresholdsDict = {}
         self.tprDict = {}
         self.fprDict = {}
-        self._createThresholdsDict(normalizedTrace, backends, frontend, frontendSLA)
+        self._createThresholdsDict(normalizedTrace, backends, frontend, from_, to)
 
-    def _createThresholdsDict(self, normalizedTrace, backends, frontend, frontendSLA):
-        y = [1 if row[0] > frontendSLA else 0
+    def _createThresholdsDict(self, normalizedTrace, backends, frontend, from_, to):
+        y = [1 if from_ < row[0] <= to else 0
              for row in normalizedTrace.select(frontend).collect()]
         for aBackend in backends:
             scores = [row[0] for row in normalizedTrace.select(aBackend).collect()]
