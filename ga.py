@@ -180,8 +180,8 @@ class GA:
 
     def __init__(self, traces, backends,
                  frontend, from_, to, mode=1, k=10):
-        normalizer = Normalizer(backends, traces)
-        self.normalizedTrace = normalizer.createNormalizedTrace()
+        self.normalizer = Normalizer(backends, traces)
+        self.normalizedTrace = self.normalizer.createNormalizedTrace()
         self.backends = backends
         self.frontend = frontend
         self.from_ = from_
@@ -220,4 +220,8 @@ class GA:
         thresholdsDict = sel.select(self.k)
         cache = self.createCache(thresholdsDict)
         ga = GAImpl(self.backends, thresholdsDict, cache)
-        return max(ga.compute(), key=lambda x: x[1])
+        pheno, fmeasure, prec, rec = max(ga.compute(), key=lambda x: x[1])
+        return ([self.normalizer.denormalizesThreshold(t, b) for b, t in zip(self.backends, pheno)],
+                fmeasure,
+                prec,
+                rec)
