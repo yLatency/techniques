@@ -3,6 +3,19 @@ from datetime import datetime, timedelta, time
 from functools import reduce
 
 
+def loadExperimentSpans(from_, to, spark):
+    fromTimestamp = int(from_.timestamp() * 1000000)
+    toTimestamp = int(to.timestamp() * 1000000)
+    return (spark.read.format("es")
+            .option("es.resource", "zipkin*")
+            .load()
+            .select('traceId',
+                    'experiment')
+            .filter(f.col('timestamp').between(fromTimestamp, toTimestamp))
+            .filter(f.col('localEndpoint.serviceName') == 'web-service')
+            .filter(f.col('kind') == 'SERVER'))
+
+
 def loadSpansByInterval(from_, to, spark):
     fromTimestamp = int(from_.timestamp() * 1000000)
     toTimestamp = int(to.timestamp() * 1000000)
