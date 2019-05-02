@@ -64,8 +64,9 @@ def union(dfx, dfy):
 
 spark = None
 try:
-    with open('experiments.csv', mode='r') as exp_file:
+    with open('experiments.csv', mode='r') as exp_file, open('results/analysis.csv', mode='w+') as analysis_file:
         exp_reader = csv.reader(exp_file, delimiter=';')
+        analysis_writer = csv.writer(analysis_file, delimiter=';')
         for exp_row in exp_reader:
             num_patterns, from_ts, to_ts = [int(x) for x in exp_row]
             from_ = datetime.fromtimestamp(from_ts)
@@ -86,7 +87,8 @@ try:
                 rec = G.count() / P.count()
                 prec = G.count() / total_sel
                 f_measure = 2 * prec * rec / (prec + rec)
-                print(f_measure, prec, rec)
+                analysis_writer.writerow([f_measure, prec, rec, exec_time])
+
 finally:
     if spark:
         spark.stop()
