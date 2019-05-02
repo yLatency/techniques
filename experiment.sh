@@ -3,9 +3,9 @@ dir=$PWD
 source /home/luca/environments/spark/bin/activate
 cd /home/luca/cococcia-shop
 
-for i in {2..2}
+for i in $(seq 2 $1)
 do
-    for j in {1..1}
+    for j in $(seq 1 $2)
     do
         docker-compose down
         docker-compose -f docker-compose.tracing.yml stop zipkin
@@ -13,6 +13,7 @@ do
         cd config
         mvn clean package
         cd ..
+        docker-compose -f docker-compose.dev.yml build config
         docker-compose up -d
         sleep 2m
         locust --host=http://localhost  --no-web -c 40 -r 1 --run-time 10s
