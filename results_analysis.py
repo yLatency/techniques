@@ -1,3 +1,5 @@
+import sys
+
 from reshape import loadExperimentSpans
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
@@ -58,13 +60,23 @@ def getTraces(file):
 
     return spark, traces, frontend, backends
 
+
 def union(dfx, dfy):
     return dfx.union(dfy)
 
 
+def get_selected_pattern(sel_traces):
+    df = (sel_traces.groupBy('experiment')
+          .count()
+          .collect())
+    row = max(df, key=lambda r: r['count'])
+    return row['experiment']
+
+
+base_dir = sys.argv[1]
 spark = None
 try:
-    with open('experiments.csv', mode='r') as exp_file, open('results/analysis.csv', mode='w+') as analysis_file:
+    with open('experiments.csv', mode='r') as exp_file, open(base_dir + '/analysis.csv', mode='w+') as analysis_file:
         exp_reader = csv.reader(exp_file, delimiter=';')
         analysis_writer = csv.writer(analysis_file, delimiter=';')
         for exp_row in exp_reader:
@@ -74,21 +86,41 @@ try:
             spark, traces, frontend, backends = getTraces('dataset/%s/%s_%s.parquet' % tuple(exp_row))
             expSpans = loadExperimentSpans(from_, to, spark)
             expTraces = traces.join(expSpans, on='traceId')
-            with open('results/%s/%s_%s.csv' % tuple(exp_row), mode='r') as res_file:
+            with open(base_dir + '/%s/%s_%s.csv' % tuple(exp_row), mode='r') as res_file:
                 res_reader = csv.reader(res_file, delimiter=';')
                 split_points = [float(s) for s in next(res_reader)]
                 exec_time = float(next(res_reader)[0])
                 explanations = [ast.literal_eval(r[0]) for r in res_reader]
-                dfs = [expTraces.filter(col('experiment') == i) for i in range(num_patterns)]
-                P = reduce(union, dfs)
-                best_tp_sel = list(best_scoring_explanation(explanations, split_points))
-                G = reduce(union, (tp for tp, _ in best_tp_sel))
-                total_sel = sum(sel.count() for _, sel in best_tp_sel)
+                ptrn_dict = {str(p): []
+                             for p in range(num_patterns)}
+
+                for explanation in explanations:
+                    sel_traces = expTraces
+                    for b, t in zip(backends, explanation):
+                        sel_traces = sel_traces.filter(col(b) >= t)
+                    ptrn = get_selected_pattern(sel_traces)
+                    p = expTraces.filter(col('experiment') == ptrn).count()
+                    tp_traces = sel_traces.filter(col('experiment') == ptrn)
+                    tp = tp_traces.count()
+                    prec = tp / sel_traces.count() if sel_traces.count() else 0
+                    rec = tp / p if p else 0
+                    fmeasure = 2 * prec * rec / (prec + rec) if prec + rec else 0
+                    ptrn_dict[ptrn].append((tp_traces, sel_traces, fmeasure))
+                res = {}
+                for ptrn in ptrn_dict:
+                    l = ptrn_dict[ptrn]
+                    if len(l) > 0:
+                        res[ptrn] = max(l, key=lambda x: x[2])
+                P = reduce(lambda x, y: x.union(y),
+                           [expTraces.filter(col('experiment') == i) for i in range(num_patterns)])
+                G = reduce(lambda x, y: x.union(y),
+                           [res[k][0] for k in res])
+                union_C = reduce(lambda x, y: x.union(y),
+                                 [res[k][1] for k in res])
                 rec = G.count() / P.count()
-                prec = G.count() / total_sel
+                prec = G.count() / union_C.count()
                 f_measure = 2 * prec * rec / (prec + rec)
                 analysis_writer.writerow([f_measure, prec, rec, exec_time])
-
 finally:
     if spark:
         spark.stop()
