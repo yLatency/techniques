@@ -1,3 +1,5 @@
+import os
+
 from pyspark.sql import SparkSession
 
 from reshape import loadSpansByInterval, createEndpointTraces
@@ -21,11 +23,13 @@ try:
         reader = csv.reader(file, delimiter=';')
         for row in reader:
             num_patterns, from_ts, to_ts = row
-            from_ = datetime.fromtimestamp(int(from_ts))
-            to = datetime.fromtimestamp(int(to_ts))
-            spans = loadSpansByInterval(from_, to, spark)
-            endpointTraces = createEndpointTraces(spans)
-            endpointTraces.write.parquet('dataset/%s/%s_%s.parquet' % (num_patterns, from_ts, to_ts))
+            filename = 'dataset/%s/%s_%s.parquet' % (num_patterns, from_ts, to_ts)
+            if not os.path.exists(filename):
+                from_ = datetime.fromtimestamp(int(from_ts))
+                to = datetime.fromtimestamp(int(to_ts))
+                spans = loadSpansByInterval(from_, to, spark)
+                endpointTraces = createEndpointTraces(spans)
+                endpointTraces.write.parquet(filename)
 finally:
     if spark is not None:
         spark.stop()
