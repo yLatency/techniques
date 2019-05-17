@@ -49,7 +49,7 @@ try:
                 if mode == 1:
                     q = qsp[0]
                 elif mode == 2:
-                    q = qsp[0] + round(1-qsp[0]/2, 2)
+                    q = qsp[0] + round((1-qsp[0])/2, 2)
                 else:
                     raise Exception('incorrect mode parameter')
                 thresholds = [qs[0] for qs in traces.approxQuantile(backends, [q], 0)]
