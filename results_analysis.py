@@ -99,13 +99,14 @@ try:
                     for b, t in zip(backends, explanation):
                         sel_traces = sel_traces.filter(col(b) >= t)
                     ptrn = get_selected_pattern(sel_traces)
-                    p = expTraces.filter(col('experiment') == ptrn).count()
-                    tp_traces = sel_traces.filter(col('experiment') == ptrn)
-                    tp = tp_traces.count()
-                    prec = tp / sel_traces.count() if sel_traces.count() else 0
-                    rec = tp / p if p else 0
-                    fmeasure = 2 * prec * rec / (prec + rec) if prec + rec else 0
-                    ptrn_dict[ptrn].append((tp_traces, sel_traces, fmeasure))
+                    if int(ptrn) < num_patterns:
+                        p = expTraces.filter(col('experiment') == ptrn).count()
+                        tp_traces = sel_traces.filter(col('experiment') == ptrn)
+                        tp = tp_traces.count()
+                        prec = tp / sel_traces.count() if sel_traces.count() else 0
+                        rec = tp / p if p else 0
+                        fmeasure = 2 * prec * rec / (prec + rec) if prec + rec else 0
+                        ptrn_dict[ptrn].append((tp_traces, sel_traces, fmeasure))
                 res = {}
                 for ptrn in ptrn_dict:
                     l = ptrn_dict[ptrn]
