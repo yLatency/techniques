@@ -50,6 +50,9 @@ class CacheMaker:
             fpBitString = row[self.fpCol(i)]
             cache[aBackend, i] = int(tpBitString, 2), int(fpBitString, 2)
 
+    # it returns a row of bitstrings for a given backend
+    # the "tp-{i}" key contains the string of bit representing true positives for the i-th threshold
+    # the "fp-{i}" key contains the string of bit representing false positives for the i-th threshold
     def createBitStringsRow(self, thresholdsDict, aBackend):
         enumThresholds = list(enumerate(thresholdsDict[aBackend]))
         df = self.createDfWithColsTpFp(enumThresholds, aBackend)
