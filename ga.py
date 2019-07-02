@@ -1,6 +1,7 @@
 from functools import reduce
 from pyspark.sql.functions import col, when, collect_list, concat_ws
 from deap import base, creator, tools, algorithms
+from operator import add
 
 from thresholds import Normalizer, RandSelector, KMeansSelector
 
@@ -58,14 +59,42 @@ class CacheMaker:
         df = self.createDfWithColsTpFp(enumThresholds, aBackend)
         stringifyCols = list(self.genStringifyCols(enumThresholds))
         return (df.groupBy()
-                .agg(*stringifyCols)
-                .collect()[0])
+            .agg(*stringifyCols)
+            .collect()[0])
+
+    def is_tp(self, row, backend, threshold):
+        return row[backend] >= threshold and self.from_ < row[self.frontend] <= self.to
+
+    def is_fp(self, row, backend, threshold):
+        return row[backend] >= threshold and (self.from_ >= row[self.frontend] or row[self.frontend] > self.to)
+
+    def create_bitstring_tp(self, b, t):
+        fe = self.frontend
+        from_ = self.from_
+        to = self.to
+        cond = lambda row: from_ < row[fe] <= to and row[b] >= t
+        return self._create_bitstring(cond)
+
+    def create_bitstring_fp(self, b, t):
+        fe = self.frontend
+        from_ = self.from_
+        to = self.to
+        cond = lambda x: (x[fe] <= from_ or x[fe] > to) and x[b] >= t
+        return self._create_bitstring(cond)
+
+    def _create_bitstring(self, cond):
+        return (self.traces.rdd.map(lambda row: '1' if cond(row) else '0')
+                               .reduce(add))
 
     def create(self, thresholdsDict):
         cache = {}
-        for aBackend in self.backends:
-            row = self.createBitStringsRow(thresholdsDict, aBackend)
-            self.addRowToCache(cache, row, aBackend)
+        for b in self.backends:
+            for i, t in enumerate(thresholdsDict[b]):
+                tp_bitstring = self.traces.rdd.map(
+                    lambda x: '1' if x[b] >= t and self.from_ < x[self.frontend] <= self.to else '0').reduce(add)
+                fp_bitstring = self.traces.rdd.map(lambda x: '1' if x[b] >= t and (
+                            self.from_ >= x[self.frontend] or x[self.frontend] > self.to) else '0').reduce(add)
+                cache[b, i] = int(tp_bitstring, 2), int(fp_bitstring, 2)
         return cache
 
 
@@ -216,7 +245,6 @@ class GA:
                                 self.from_,
                                 self.to)
         return cacheMaker.create(thresholdsDict)
-
 
     def compute(self):
         sel = self.getSelector()
