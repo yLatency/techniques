@@ -14,24 +14,20 @@ class CacheMaker:
         self.backends = backends
         self.from_ = from_
         self.to = to
-        
+
     def create_bitstr_tp(self, b, t):
-        fe = self.frontend
-        from_ = self.from_
-        to = self.to
-        cond = lambda row: from_ < row[fe] <= to and row[b] >= t
-        return self._create_bitstring(cond)
+        pos = self.traces.filter((col(self.frontend) > self.from_) &
+                                 (col(self.frontend) <= self.to))
+        return self._create_bitstring(pos, b, t)
 
     def create_bitstr_fp(self, b, t):
-        fe = self.frontend
-        from_ = self.from_
-        to = self.to
-        cond = lambda x: (x[fe] <= from_ or x[fe] > to) and x[b] >= t
-        return self._create_bitstring(cond)
+        neg = self.traces.filter((col(self.frontend) <= self.from_) |
+                                 (col(self.frontend) > self.to))
+        return self._create_bitstring(neg, b, t)
 
-    def _create_bitstring(self, cond):
-        return (self.traces.rdd.map(lambda row: '1' if cond(row) else '0')
-                               .reduce(add))
+    def _create_bitstring(self, filtered_traces, b, t):
+        return (filtered_traces.rdd.map(lambda row: '1' if row[b] >= t else '0')
+                                   .reduce(add))
 
     def create(self, thr_dict):
         cache = {}
@@ -48,8 +44,6 @@ class FitnessUtils:
         self.backends = backends
         self.cache = cache
         self.p = bin(self.getTPBitString(self.backends[0], 0)).count('1')
-        if self.p <= 0:
-            raise Exception('No positives')
 
     def countOnesInConjunctedBitStrings(self, ind, getter):
         bit = reduce(lambda bits, bt: bits & getter(*bt),
