@@ -14,68 +14,15 @@ class CacheMaker:
         self.backends = backends
         self.from_ = from_
         self.to = to
-
-    def tpCol(self, index):
-        return 'tp-%d' % index
-
-    def fpCol(self, index):
-        return 'fp-%d' % index
-
-    def withColsTpFp(self, df, enumThreshold, aBackend):
-        index, threshold = enumThreshold
-        aboveThresholdCond = col(aBackend) >= threshold
-        tpCond = aboveThresholdCond & (col(self.frontend) > self.from_) & (col(self.frontend) <= self.to)
-        fpCond = aboveThresholdCond & ((col(self.frontend) <= self.from_) | (col(self.frontend) > self.to))
-        whenTrueOneElseZero = lambda cond: when(cond, '1').otherwise('0')
-        return (df.withColumn(self.tpCol(index), whenTrueOneElseZero(tpCond))
-                .withColumn(self.fpCol(index), whenTrueOneElseZero(fpCond)))
-
-    def createDfWithColsTpFp(self, enumThresholds, aBackend):
-        return reduce(lambda df, enumThr: self.withColsTpFp(df, enumThr, aBackend),
-                      enumThresholds,
-                      self.traces)
-
-    def stringifyCol(self, column):
-        colToList = collect_list(col(column))
-        listToString = concat_ws("", colToList)
-        return listToString.alias(column)
-
-    def genStringifyCols(self, enumThresholds):
-        for i, _ in enumThresholds:
-            yield self.stringifyCol(self.tpCol(i))
-            yield self.stringifyCol(self.fpCol(i))
-
-    def addRowToCache(self, cache, row, aBackend):
-        for i in range(len(row) // 2):
-            tpBitString = row[self.tpCol(i)]
-            fpBitString = row[self.fpCol(i)]
-            cache[aBackend, i] = int(tpBitString, 2), int(fpBitString, 2)
-
-    # it returns a row of bitstrings for a given backend
-    # the "tp-{i}" key contains the string of bit representing true positives for the i-th threshold
-    # the "fp-{i}" key contains the string of bit representing false positives for the i-th threshold
-    def createBitStringsRow(self, thresholdsDict, aBackend):
-        enumThresholds = list(enumerate(thresholdsDict[aBackend]))
-        df = self.createDfWithColsTpFp(enumThresholds, aBackend)
-        stringifyCols = list(self.genStringifyCols(enumThresholds))
-        return (df.groupBy()
-            .agg(*stringifyCols)
-            .collect()[0])
-
-    def is_tp(self, row, backend, threshold):
-        return row[backend] >= threshold and self.from_ < row[self.frontend] <= self.to
-
-    def is_fp(self, row, backend, threshold):
-        return row[backend] >= threshold and (self.from_ >= row[self.frontend] or row[self.frontend] > self.to)
-
-    def create_bitstring_tp(self, b, t):
+        
+    def create_bitstr_tp(self, b, t):
         fe = self.frontend
         from_ = self.from_
         to = self.to
         cond = lambda row: from_ < row[fe] <= to and row[b] >= t
         return self._create_bitstring(cond)
 
-    def create_bitstring_fp(self, b, t):
+    def create_bitstr_fp(self, b, t):
         fe = self.frontend
         from_ = self.from_
         to = self.to
@@ -86,15 +33,13 @@ class CacheMaker:
         return (self.traces.rdd.map(lambda row: '1' if cond(row) else '0')
                                .reduce(add))
 
-    def create(self, thresholdsDict):
+    def create(self, thr_dict):
         cache = {}
         for b in self.backends:
-            for i, t in enumerate(thresholdsDict[b]):
-                tp_bitstring = self.traces.rdd.map(
-                    lambda x: '1' if x[b] >= t and self.from_ < x[self.frontend] <= self.to else '0').reduce(add)
-                fp_bitstring = self.traces.rdd.map(lambda x: '1' if x[b] >= t and (
-                            self.from_ >= x[self.frontend] or x[self.frontend] > self.to) else '0').reduce(add)
-                cache[b, i] = int(tp_bitstring, 2), int(fp_bitstring, 2)
+            for i, t in enumerate(thr_dict[b]):
+                tp = self.create_bitstr_tp(b, t)
+                fp = self.create_bitstr_fp(b, t)
+                cache[b, i] = int(tp, 2), int(fp, 2)
         return cache
 
 
