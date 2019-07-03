@@ -26,8 +26,9 @@ class CacheMaker:
         return self._create_bitstring(neg, b, t)
 
     def _create_bitstring(self, filtered_traces, b, t):
-        return (filtered_traces.rdd.map(lambda row: '1' if row[b] >= t else '0')
-                                   .reduce(add))
+        sorted_traces = filtered_traces.sort('traceId')
+        return (sorted_traces.rdd.map(lambda row: '1' if row[b] >= t else '0')
+                                 .reduce(add))
 
     def create(self, thr_dict):
         cache = {}
