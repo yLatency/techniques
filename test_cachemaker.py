@@ -15,7 +15,7 @@ class TestCacheMaker(TestCase):
     def setUp(self):
         self.backend = 'b'
         self.frontend = 'f'
-        self.traces = self.spark.createDataFrame([(1000, 3000), (2000, 3000)], [self.backend, self.frontend])
+        self.traces = self.spark.createDataFrame([('1', 1000, 3000), ('2', 2000, 3000)], ['traceId', self.backend, self.frontend])
 
     def test_tp_zerozero(self):
         cm = CacheMaker(self.traces, [self.backend], self.frontend, 2000, 4000)
@@ -52,6 +52,39 @@ class TestCacheMaker(TestCase):
         threshold = 1000
         bitstring = cm.create_bitstr_fp(self.backend, threshold)
         self.assertEqual('11', bitstring)
+
+    def test_create_tp(self):
+        cm = CacheMaker(self.traces, [self.backend], self.frontend, 2000, 4000)
+        tzerozero= 3000
+        tzeroone = 1500
+        toneone = 1000
+        thresholds = [tzerozero, tzeroone, toneone]
+
+        zerozero = int('00', 2)
+        zeroone = int('01', 2)
+        oneone = int('11', 2)
+        expected =[zerozero, zeroone, oneone]
+
+        list_tp = cm.create_tp(self.backend, thresholds)
+
+        self.assertEqual(expected, list_tp)
+
+    def test_create_fp(self):
+        cm = CacheMaker(self.traces, [self.backend], self.frontend,  2000, 2500)
+        tzerozero= 3000
+        tzeroone = 1500
+        toneone = 1000
+        thresholds = [tzerozero, tzeroone, toneone]
+
+        zerozero = int('00', 2)
+        zeroone = int('01', 2)
+        oneone = int('11', 2)
+        expected =[zerozero, zeroone, oneone]
+
+        list_tp = cm.create_fp(self.backend, thresholds)
+
+        self.assertEqual(expected, list_tp)
+
 
     @classmethod
     def tearDownClass(cls):

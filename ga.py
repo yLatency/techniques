@@ -15,29 +15,34 @@ class CacheMaker:
         self.from_ = from_
         self.to = to
 
-    def create_bitstr_tp(self, b, t):
-        pos = self.traces.filter((col(self.frontend) > self.from_) &
-                                 (col(self.frontend) <= self.to))
-        return self._create_bitstring(pos, b, t)
-
-    def create_bitstr_fp(self, b, t):
-        neg = self.traces.filter((col(self.frontend) <= self.from_) |
-                                 (col(self.frontend) > self.to))
-        return self._create_bitstring(neg, b, t)
-
-    def _create_bitstring(self, filtered_traces, b, t):
-        sorted_traces = filtered_traces.sort('traceId')
-        return (sorted_traces.rdd.map(lambda row: '1' if row[b] >= t else '0')
-                                 .reduce(add))
-
     def create(self, thr_dict):
         cache = {}
         for b in self.backends:
-            for i, t in enumerate(thr_dict[b]):
-                tp = self.create_bitstr_tp(b, t)
-                fp = self.create_bitstr_fp(b, t)
-                cache[b, i] = int(tp, 2), int(fp, 2)
+            tp_intlist = self.create_tp(b, thr_dict[b])
+            fp_intlist = self.create_fp(b, thr_dict[b])
+            size = len(thr_dict[b])
+            for i in range(size):
+                cache[b, i] = tp_intlist[i], fp_intlist[i]
+
         return cache
+
+
+    def create_tp(self, backend, thresholds):
+        pos = (self.traces.filter((col(self.frontend) > self.from_) &
+                                    (col(self.frontend) <= self.to)))
+
+        return self.create_bitslists(pos, backend, thresholds)
+
+    def create_bitslists(self, filtered_traces, backend, thresholds):
+        sorted_traces = filtered_traces.sort('traceId')
+        list_bitstring = (sorted_traces.rdd.map(lambda row: ['1' if row[backend] >= t else '0' for t in thresholds])
+                                           .reduce(lambda x, y: [a + b for a, b in zip(x, y)]))
+        return [int(bs, 2) for bs in list_bitstring]
+
+    def create_fp(self, backend, thresholds):
+        neg = self.traces.filter((col(self.frontend) <= self.from_) |
+                                 (col(self.frontend) > self.to))
+        return self.create_bitslists(neg, backend, thresholds)
 
 
 class FitnessUtils:

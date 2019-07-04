@@ -16,9 +16,9 @@ class TestFitnessUtils(TestCase):
     def setUp(self):
         self.backends = ['b1', 'b2']
         self.frontend = 'f'
-        self.traces = self.spark.createDataFrame([(1000, 2000, 3000),
-                                                  (2000, 3000, 4000)],
-                                                   self.backends + [self.frontend])
+        self.traces = self.spark.createDataFrame([('1', 1000, 2000, 3000),
+                                                  ('2', 2000, 3000, 4000)],
+                                                 ['traceId'] + self.backends + [self.frontend])
         # first trace is negative, second one is positive
         self.cachemaker = CacheMaker(self.traces,
                                      self.backends,
