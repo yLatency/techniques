@@ -1,9 +1,8 @@
 from functools import reduce
-from pyspark.sql.functions import col, when, collect_list, concat_ws
+from pyspark.sql.functions import col
 from deap import base, creator, tools, algorithms
-from operator import add
 
-from thresholds import Normalizer, RandSelector, KMeansSelector
+from thresholds import RandSelector, KMeansSelector
 
 
 class CacheMaker:
@@ -157,8 +156,7 @@ class GA:
 
     def __init__(self, traces, backends,
                  frontend, from_, to, mode=1, k=10):
-        self.normalizer = Normalizer(backends, traces)
-        self.normalizedTrace = self.normalizer.createNormalizedTrace()
+        self.traces = traces
         self.backends = backends
         self.frontend = frontend
         self.from_ = from_
@@ -170,13 +168,13 @@ class GA:
         sel = None
 
         if self.mode == self.RANDOM:
-            sel = RandSelector(self.normalizedTrace,
+            sel = RandSelector(self.traces,
                                self.backends,
                                self.frontend,
                                self.from_,
                                self.to)
         else:
-            sel = KMeansSelector(self.normalizedTrace,
+            sel = KMeansSelector(self.traces,
                                  self.backends,
                                  self.frontend,
                                  self.from_,
@@ -184,7 +182,7 @@ class GA:
         return sel
 
     def createCache(self, thresholdsDict):
-        cacheMaker = CacheMaker(self.normalizedTrace,
+        cacheMaker = CacheMaker(self.traces,
                                 self.backends,
                                 self.frontend,
                                 self.from_,
@@ -197,7 +195,7 @@ class GA:
         cache = self.createCache(thresholdsDict)
         ga = GAImpl(self.backends, thresholdsDict, cache)
         pheno, fmeasure, prec, rec = max(ga.compute(), key=lambda x: x[1])
-        return ([self.normalizer.denormalizesThreshold(t, b) for b, t in zip(self.backends, pheno)],
+        return (pheno,
                 fmeasure,
                 prec,
                 rec)

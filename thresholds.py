@@ -1,30 +1,8 @@
-from functools import reduce
 from pyspark.sql.functions import col
 from sklearn.metrics import roc_curve
 from sklearn.cluster import KMeans
 import numpy as np
 from abc import ABC, abstractmethod
-
-
-class Normalizer:
-    def __init__(self, backends, traces):
-        self.maxs = {c: traces.select(c).rdd.max()[0]
-                     for c in backends}
-        self.mins = {c: traces.select(c).rdd.min()[0]
-                     for c in backends}
-        self.traces = traces
-        self.backends = backends
-
-    # Max-min normalization for backends columns (others columns remain unchanged)
-    def createNormalizedTrace(self):
-        normalizedTrace = reduce(
-            lambda df, c: df.withColumn(c, (col(c) - self.mins[c]) / (self.maxs[c] - self.mins[c])),
-            self.backends,
-            self.traces)
-        return normalizedTrace
-
-    def denormalizesThreshold(self, threshold, backend):
-        return round(threshold * (self.maxs[backend] - self.mins[backend]) + self.mins[backend])
 
 
 class Selector(ABC):
