@@ -33,7 +33,7 @@ class CacheMaker:
         return self.create_bitslists(pos, backend, thresholds)
 
     def create_bitslists(self, filtered_traces, backend, thresholds):
-        sorted_traces = filtered_traces.sort('traceId')
+        sorted_traces = filtered_traces.sortWithinPartitions('traceId')
         list_bitstring = (sorted_traces.rdd.map(lambda row: ['1' if row[backend] >= t else '0' for t in thresholds])
                                            .reduce(lambda x, y: [a + b for a, b in zip(x, y)]))
         return [int(bs, 2) for bs in list_bitstring]
