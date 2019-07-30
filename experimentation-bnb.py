@@ -2,7 +2,7 @@ import sys
 import time
 
 from pyspark.sql import SparkSession
-from range_analysis import RangeAnalysis
+from ks.range_analysis import RangeAnalysis
 import shutil
 import csv
 import os

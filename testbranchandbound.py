@@ -2,7 +2,7 @@ import shutil
 
 from pyspark.sql import SparkSession
 
-from branchandbound import BranchAndBound
+from ks.branchandbound import BranchAndBound
 from enumeration import Enumeration
 
 file = 'mock/data.parquet'

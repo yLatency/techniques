@@ -3,7 +3,7 @@ import time
 import shutil
 from pyspark.sql import SparkSession
 
-from range_analysis import RangeAnalysis
+from ks.range_analysis import RangeAnalysis
 import csv
 
 spark = None

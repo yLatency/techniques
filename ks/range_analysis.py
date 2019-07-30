@@ -1,5 +1,5 @@
 from ga import GA
-from branchandbound import BranchAndBound
+from ks.branchandbound import BranchAndBound
 
 
 class RangeAnalysis:

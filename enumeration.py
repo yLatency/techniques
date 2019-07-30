@@ -1,5 +1,5 @@
 from itertools import combinations
-from metrics import Metrics, Explanation
+from ks.metrics import Metrics, Explanation
 
 
 class Enumeration:
