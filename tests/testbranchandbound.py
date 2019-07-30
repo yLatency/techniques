@@ -3,7 +3,7 @@ import shutil
 from pyspark.sql import SparkSession
 
 from ks.branchandbound import BranchAndBound
-from enumeration import Enumeration
+from tests.enumeration import Enumeration
 
 file = 'mock/data.parquet'
 spark = None
