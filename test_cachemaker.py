@@ -1,6 +1,6 @@
 from unittest import TestCase
 from pyspark.sql import SparkSession
-from ga import CacheMaker
+from ylatency.ga import CacheMaker
 
 
 class TestCacheMaker(TestCase):

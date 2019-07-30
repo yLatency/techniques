@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from pyspark.sql import SparkSession
-from ga import CacheMaker, FitnessUtils
+from ylatency.ga import CacheMaker, FitnessUtils
 
 
 class TestFitnessUtils(TestCase):

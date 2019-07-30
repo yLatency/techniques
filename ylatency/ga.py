@@ -2,7 +2,7 @@ from functools import reduce
 from pyspark.sql.functions import col
 from deap import base, creator, tools, algorithms
 
-from thresholds import RandSelector, KMeansSelector
+from ylatency.thresholds import RandSelector, KMeansSelector
 
 
 class CacheMaker:

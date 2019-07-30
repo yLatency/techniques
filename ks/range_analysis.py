@@ -1,4 +1,4 @@
-from ga import GA
+from ylatency.ga import GA
 from ks.branchandbound import BranchAndBound
 
 
