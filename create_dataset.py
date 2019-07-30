@@ -2,7 +2,7 @@ import os
 
 from pyspark.sql import SparkSession
 
-from reshape import loadSpansByInterval, createEndpointTraces
+from tracelib.reshape import loadSpansByInterval, createEndpointTraces
 from datetime import datetime
 import csv
 import shutil

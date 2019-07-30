@@ -1,6 +1,6 @@
 import sys
 
-from reshape import loadExperimentSpans
+from tracelib.reshape import loadExperimentSpans
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 import shutil
