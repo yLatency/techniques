@@ -4,9 +4,9 @@ from ks.metrics import Metrics, Explanation
 
 class Enumeration:
     def __init__(self, traces, backends,
-                 thresholds, frontend, frontendSLA):
+                 thresholds, frontend, from_, to):
         self.metrics = Metrics(traces, backends,
-                               thresholds, frontend, frontendSLA)
+                               thresholds, frontend, from_, to)
         self.features = set(backends)
         self.bestExp = None
 
