@@ -2,7 +2,7 @@ from functools import reduce
 from pyspark.sql.functions import col
 from deap import base, creator, tools, algorithms
 
-from ylatency.thresholds import RandSelector, KMeansSelector
+from ylatency.thresholds import MSSelector
 
 
 class CacheMaker:
@@ -151,35 +151,14 @@ class GAImpl:
 
 
 class GA:
-    KMEANS = 1
-    RANDOM = 2
 
     def __init__(self, traces, backends,
-                 frontend, from_, to, mode=1, k=10):
+                 frontend, from_, to):
         self.traces = traces
         self.backends = backends
         self.frontend = frontend
         self.from_ = from_
         self.to = to
-        self.mode = mode
-        self.k = k
-
-    def getSelector(self):
-        sel = None
-
-        if self.mode == self.RANDOM:
-            sel = RandSelector(self.traces,
-                               self.backends,
-                               self.frontend,
-                               self.from_,
-                               self.to)
-        else:
-            sel = KMeansSelector(self.traces,
-                                 self.backends,
-                                 self.frontend,
-                                 self.from_,
-                                 self.to)
-        return sel
 
     def createCache(self, thresholdsDict):
         cacheMaker = CacheMaker(self.traces,
@@ -190,10 +169,11 @@ class GA:
         return cacheMaker.create(thresholdsDict)
 
     def compute(self):
-        sel = self.getSelector()
-        thresholdsDict = sel.select(self.k)
-        cache = self.createCache(thresholdsDict)
-        ga = GAImpl(self.backends, thresholdsDict, cache)
+        mss = MSSelector(self.traces)
+        thresholds_dict = {b: mss.select(b)
+                          for b in self.backends}
+        cache = self.createCache(thresholds_dict)
+        ga = GAImpl(self.backends, thresholds_dict, cache)
         pheno, fmeasure, prec, rec = max(ga.compute(), key=lambda x: x[1])
         return (pheno,
                 fmeasure,
