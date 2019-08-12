@@ -10,7 +10,7 @@ class RangeAnalysis:
         self.frontend = frontend
         self.splitPoints = splitPoints
 
-    def _explainSingleIntervalGA(self, from_, to, k):
+    def _explainSingleIntervalGA(self, from_, to):
         ga = GA(self.traces,
                 self.backends,
                 self.frontend,
@@ -43,9 +43,9 @@ class RangeAnalysis:
 
             return bestSelectedSplits, bestSumFMeas, bestExplanations
 
-    def explainsWithGA(self, k):
+    def explainsWithGA(self):
         n = len(self.splitPoints) - 1
-        f = lambda from_, to: self._explainSingleIntervalGA(from_, to, k)
+        f = lambda from_, to: self._explainSingleIntervalGA(from_, to)
         return self._computeBestSplits(n, f)
 
     def explainsWithBnB(self, thresholds):
