@@ -14,8 +14,7 @@ class RangeAnalysis:
         ga = GA(self.traces,
                 self.backends,
                 self.frontend,
-                from_, to,
-                k=k)
+                from_, to)
         return ga.compute()
 
     def _explainSingleIntervalBnB(self, from_, to, thresholds):
