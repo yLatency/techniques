@@ -1,9 +1,9 @@
+from operator import itemgetter
 from unittest import TestCase
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 from ylatency.ga import CacheMaker, FitnessUtils
-import random
 from functools import reduce
 
 
@@ -21,7 +21,7 @@ class TestFitnessUtils(TestCase):
         from_ = self.traces.approxQuantile([self.frontend], [0.5], 0)[0][0]
         to = self.traces.select(self.frontend).rdd.max()[0]
         self.interval = (from_, to)
-        self.quantiles = [0.0, 0.4, 0.6, 0.8]
+        self.quantiles = [0.4, 0.6, 0.8]
 
         self.backends = [c for c in self.traces.columns
                          if c.endswith('avg_self_dur')]
@@ -35,8 +35,12 @@ class TestFitnessUtils(TestCase):
 
     def create_thr_dict(self):
         thresholds_lists = self.traces.approxQuantile(self.backends, self.quantiles, 0)
-        return {b: thresholds
-                for b, thresholds in zip(self.backends, thresholds_lists)}
+        thr_dict = {}
+        for b, thresholds in zip(self.backends, thresholds_lists):
+            max_ = self.traces.select(b).rdd.max()[0] + 1
+            thr_dict[b] = thresholds + [max_]
+
+        return thr_dict
 
     def create_cache(self):
         cache_maker = CacheMaker(self.traces,
@@ -46,23 +50,31 @@ class TestFitnessUtils(TestCase):
 
         return cache_maker.create(self.thr_dict)
 
-    def filter_by_ind(self, traces, ind):
-        sol = [(b, self.thr_dict[b][i])
-               for b, i in zip(self.backends, ind)]
+    def decode_ind(self, ind):
+        decoded = set()
+        for bi, fi, ti in ind:
+            b = self.backends[bi]
+            f = self.thr_dict[b][fi]
+            t = self.thr_dict[b][ti]
+            decoded.add((b, f, t))
+        return decoded
 
-        return reduce(lambda df, bt: df.filter(col(bt[0]) >= bt[1]),
-                      sol,
+
+    def filter_by_ind(self, traces, ind):
+        decoded = self.decode_ind(ind)
+
+        filterbyintervals = (lambda df, bft: df.filter(col(bft[0]) >= bft[1])
+                                               .filter(col(bft[0]) < bft[2]))
+        return reduce(filterbyintervals,
+                      decoded,
                       traces)
 
-    def create_rdm_ind(self):
-        random.seed(10)
-        n = len(self.quantiles)
-        return [random.randrange(n)
-                for _ in self.backends]
+    def create_ind(self):
+        return {(0, 0, 2), (2, 2, 3), (5, 1, 2)}
 
     def test_compute_tp(self):
 
-        ind = self.create_rdm_ind()
+        ind = self.create_ind()
 
         tp = self.filter_by_ind(self.pos_traces, ind)
 
@@ -71,7 +83,7 @@ class TestFitnessUtils(TestCase):
         self.assertEqual(tp.count(), val)
 
     def test_compute_fp(self):
-        ind = self.create_rdm_ind()
+        ind = self.create_ind()
 
         fp = self.filter_by_ind(self.neg_traces, ind)
 
@@ -81,7 +93,7 @@ class TestFitnessUtils(TestCase):
 
 
     def test_compute_prec_rec(self):
-        ind = self.create_rdm_ind()
+        ind = self.create_ind()
 
         tp = self.filter_by_ind(self.pos_traces, ind)
         fp = self.filter_by_ind(self.neg_traces, ind)
@@ -95,7 +107,7 @@ class TestFitnessUtils(TestCase):
 
 
     def test_compute_fmeasure(self):
-        ind = self.create_rdm_ind()
+        ind = self.create_ind()
 
         tp = self.filter_by_ind(self.pos_traces, ind)
         fp = self.filter_by_ind(self.neg_traces, ind)

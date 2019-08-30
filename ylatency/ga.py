@@ -16,7 +16,8 @@ class CacheMaker:
         self.to = to
 
     def create(self, thr_dict):
-        cache = {}
+        cache = {'p': self.get_positives().count()}
+
         for b in self.backends:
             tp_intlist = self.create_tp(b, thr_dict[b])
             fp_intlist = self.create_fp(b, thr_dict[b])
@@ -26,11 +27,12 @@ class CacheMaker:
 
         return cache
 
+    def get_positives(self):
+        return (self.traces.filter((col(self.frontend) > self.from_) &
+                                   (col(self.frontend) <= self.to)))
 
     def create_tp(self, backend, thresholds):
-        pos = (self.traces.filter((col(self.frontend) > self.from_) &
-                                    (col(self.frontend) <= self.to)))
-
+        pos = self.get_positives()
         return self.create_bitslists(pos, backend, thresholds)
 
     def create_bitslists(self, filtered_traces, backend, thresholds):
@@ -49,26 +51,27 @@ class FitnessUtils:
     def __init__(self, backends, cache):
         self.backends = backends
         self.cache = cache
-        self.p = bin(self.getTPBitString(self.backends[0], 0)).count('1')
+        self.p = cache['p']
 
     def countOnesInConjunctedBitStrings(self, ind, getter):
-        bit = reduce(lambda bits, bt: bits & getter(*bt),
-                     zip(self.backends[1:], ind[1:]),
-                     getter(self.backends[0], ind[0]))
+        bit = reduce(lambda bx, by: bx & by,
+                     map(getter, ind))
         return bin(bit).count("1")
 
-    def getTPBitString(self, backend, threshold):
+    def getTPBitString(self, backend_idx, threshold):
+        backend = self.backends[backend_idx]
         return self.cache[backend, threshold][0]
 
-    def getFPBitString(self, backend, threshold):
+    def getFPBitString(self, backend_idx, threshold):
+        backend = self.backends[backend_idx]
         return self.cache[backend, threshold][1]
 
     def computeTP(self, ind):
-        getter = lambda backend, threshold: self.getTPBitString(backend, threshold)
+        getter = lambda bft: self.getTPBitString(bft[0], bft[1]) & ~ self.getTPBitString(bft[0], bft[2])
         return self.countOnesInConjunctedBitStrings(ind, getter)
 
     def computeFP(self, ind):
-        getter = lambda backend, threshold: self.getFPBitString(backend, threshold)
+        getter = lambda bft: self.getFPBitString(bft[0], bft[1]) & ~ self.getFPBitString(bft[0], bft[2])
         return self.countOnesInConjunctedBitStrings(ind, getter)
 
     def computePrecRec(self, ind):
