@@ -1,3 +1,4 @@
+import random
 from functools import reduce
 from pyspark.sql.functions import col
 from deap import base, creator, tools, algorithms
@@ -102,7 +103,7 @@ class GAImpl:
 
     def registerAttributes(self):
         for b in self.backends:
-            self.toolbox.register(b, lambda x, y: 0, 0, self.thresholdSizes[b] - 1)
+            self.toolbox.register(b, random.randint, 0, self.thresholdSizes[b] - 1)
 
     def registerIndividual(self):
         attrs = (self.toolbox.__dict__[b] for b in self.backends)
