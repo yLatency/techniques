@@ -54,11 +54,15 @@ class TestFitnessUtils(TestCase):
                       sol,
                       traces)
 
-    def test_compute_tp(self):
+    def create_rdm_ind(self):
         random.seed(10)
         n = len(self.quantiles)
-        ind = [random.randrange(n)
-               for _ in self.backends]
+        return [random.randrange(n)
+                for _ in self.backends]
+
+    def test_compute_tp(self):
+
+        ind = self.create_rdm_ind()
 
         tp = self.filter_by_ind(self.pos_traces, ind)
 
@@ -67,10 +71,7 @@ class TestFitnessUtils(TestCase):
         self.assertEqual(tp.count(), val)
 
     def test_compute_fp(self):
-        random.seed(10)
-        n = len(self.quantiles)
-        ind = [random.randrange(n)
-               for _ in self.backends]
+        ind = self.create_rdm_ind()
 
         fp = self.filter_by_ind(self.neg_traces, ind)
 
@@ -80,10 +81,7 @@ class TestFitnessUtils(TestCase):
 
 
     def test_compute_prec_rec(self):
-        random.seed(10)
-        n = len(self.quantiles)
-        ind = [random.randrange(n)
-               for _ in self.backends]
+        ind = self.create_rdm_ind()
 
         tp = self.filter_by_ind(self.pos_traces, ind)
         fp = self.filter_by_ind(self.neg_traces, ind)
@@ -97,10 +95,7 @@ class TestFitnessUtils(TestCase):
 
 
     def test_compute_fmeasure(self):
-        random.seed(10)
-        n = len(self.quantiles)
-        ind = [random.randrange(n)
-               for _ in self.backends]
+        ind = self.create_rdm_ind()
 
         tp = self.filter_by_ind(self.pos_traces, ind)
         fp = self.filter_by_ind(self.neg_traces, ind)
