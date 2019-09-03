@@ -16,7 +16,9 @@ class CacheMaker:
         self.to = to
 
     def create(self, thr_dict):
-        cache = {'p': self.get_positives().count()}
+        pos = self.get_positives().count()
+        cache = {'p': pos,
+                 'n': self.traces.count() - pos}
 
         for b in self.backends:
             tp_intlist = self.create_tp(b, thr_dict[b])
@@ -52,6 +54,7 @@ class FitnessUtils:
         self.backends = backends
         self.cache = cache
         self.p = cache['p']
+        self.n = cache['n']
 
     def countOnesInConjunctedBitStrings(self, ind, getter):
         bit = reduce(lambda bx, by: bx & by,
@@ -67,12 +70,22 @@ class FitnessUtils:
         return self.cache[backend, threshold][1]
 
     def computeTP(self, ind):
-        getter = lambda bft: self.getTPBitString(bft[0], bft[1]) & ~ self.getTPBitString(bft[0], bft[2])
-        return self.countOnesInConjunctedBitStrings(ind, getter)
+        tp = None
+        if len(ind) == 0:
+            tp = self.p
+        else:
+            getter = lambda bft: self.getTPBitString(bft[0], bft[1]) & ~ self.getTPBitString(bft[0], bft[2])
+            tp = self.countOnesInConjunctedBitStrings(ind, getter)
+        return tp
 
     def computeFP(self, ind):
-        getter = lambda bft: self.getFPBitString(bft[0], bft[1]) & ~ self.getFPBitString(bft[0], bft[2])
-        return self.countOnesInConjunctedBitStrings(ind, getter)
+        fp = None
+        if len(ind) == 0:
+            fp = self.n
+        else:
+            getter = lambda bft: self.getFPBitString(bft[0], bft[1]) & ~ self.getFPBitString(bft[0], bft[2])
+            fp = self.countOnesInConjunctedBitStrings(ind, getter)
+        return fp
 
     def computePrecRec(self, ind):
         tp = self.computeTP(ind)
@@ -96,7 +109,7 @@ class GAImpl:
 
     def initGA(self):
         creator.create("Fitness", base.Fitness, weights=(1.0,))
-        creator.create("Individual", list, fitness=creator.Fitness)
+        creator.create("Individual", set, fitness=creator.Fitness)
         self.toolbox = base.Toolbox()
         self.registerAttributes()
         self.registerIndividual()
@@ -104,16 +117,79 @@ class GAImpl:
         self.registerMateMutateAndSelect()
         self.registerEvaluate()
 
+    def rdm_interval(self, thresholds):
+        indexes = [i for i, _ in enumerate(thresholds)]
+        from_, to = sorted(random.sample(indexes, k=2))
+        return from_, to
+
+
+    def rdm_cond(self):
+        cond = None
+        while cond is None:
+            indexes = [i for i, _ in enumerate(self.backends)]
+            bi = random.choice(indexes)
+            b = self.backends[bi]
+            thresholds = self.thresholdsDict[b]
+            if len(thresholds) > 1:
+                from_, to = self.rdm_interval(thresholds)
+                cond = (bi, from_, to)
+        return cond
+
+    def cx(self, ind1, ind2):
+        ind1 |= ind2
+        ind2 |= ind1
+        size = len(ind1)
+        if size > 0:
+            chosen = random.sample(ind2, k=random.randint(1, size))
+            ind1 ^= set(chosen)
+            ind2 ^= ind1
+        return ind1, ind2
+
+    def mut(self, individual):
+        mutkind = random.randrange(3)
+        if mutkind == 0:
+            self.mutremove(individual)
+        elif mutkind == 1:
+            self.mutadd(individual)
+
+        elif mutkind == 2:
+            self.mutmodify(individual)
+
+        return individual,
+
+    def mutadd(self, individual):
+        newcond = self.rdm_cond()
+        exist = [cond for cond in individual if cond[0] == newcond[0]]
+        if not exist:
+            individual.add(newcond)
+
+    def mutremove(self, individual):
+        if len(individual) > 0:
+            rdmcond = random.sample(individual, 1)[0]
+            individual.remove(rdmcond)
+
+    def mutmodify(self, individual):
+        if len(individual) > 0:
+            rdmcond = random.sample(individual, 1)[0]
+            interval = list(rdmcond[1:])
+            b = self.backends[rdmcond[0]]
+            thrslen = len(self.thresholdsDict[b])
+            interval[random.randrange(2)] = random.randrange(thrslen)
+            if interval[0] != interval[1]:
+                individual.remove(rdmcond)
+                newcond = (rdmcond[0], *sorted(interval))
+                individual.add(newcond)
+
     def registerAttributes(self):
-        for b in self.backends:
-            self.toolbox.register(b, random.randint, 0, self.thresholdSizes[b] - 1)
+        self.toolbox.register("attribute", self.rdm_cond)
 
     def registerIndividual(self):
-        attrs = (self.toolbox.__dict__[b] for b in self.backends)
+        SIZE_EXPL = 2
         self.toolbox.register("individual",
-                              tools.initCycle,
+                              tools.initRepeat,
                               creator.Individual,
-                              tuple(attrs))
+                              self.toolbox.attribute,
+                              SIZE_EXPL)
 
     def registerPop(self):
         self.toolbox.register("population",
@@ -122,17 +198,13 @@ class GAImpl:
                               self.toolbox.individual)
 
     def registerMateMutateAndSelect(self):
-        self.toolbox.register("mate", tools.cxTwoPoint)
-        self.toolbox.register("mutate",
-                              tools.mutUniformInt,
-                              low=[0] * len(self.backends),
-                              up=[self.thresholdSizes[b] - 1 for b in self.backends],
-                              indpb=1.0 / len(self.backends))
-        self.toolbox.register("select", tools.selTournament, tournsize=3)
+        self.toolbox.register("mate", self.cx)
+        self.toolbox.register("mutate", self.mut)
+        self.toolbox.register("select", tools.selTournament, tournsize=20)
 
     def registerEvaluate(self):
-        self.toolbox.register("evaluate",
-                              lambda ind: (self.fitnessUtils.computeFMeasure(ind),))
+        evaluate = lambda ind: (self.fitnessUtils.computeFMeasure(ind),)
+        self.toolbox.register("evaluate", evaluate)
 
     def genoToPheno(self, ind):
         return [self.thresholdsDict[b][i] for i, b in zip(ind, self.backends)]
@@ -157,12 +229,13 @@ class GAImpl:
 class GA:
 
     def __init__(self, traces, backends,
-                 frontend, from_, to):
+                 frontend, from_, to, bandwidth=10):
         self.traces = traces
         self.backends = backends
         self.frontend = frontend
         self.from_ = from_
         self.to = to
+        self.bandwidth = bandwidth
 
     def createCache(self, thresholdsDict):
         cacheMaker = CacheMaker(self.traces,
@@ -172,10 +245,17 @@ class GA:
                                 self.to)
         return cacheMaker.create(thresholdsDict)
 
+    def create_thrsdict(self):
+        mss = MSSelector(self.traces, self.bandwidth)
+        thrsdict = {}
+        for b in self.backends:
+            splitpoints = mss.select(b)
+            splitpoints += [self.traces.select(b).rdd.max()[0]+1]
+            thrsdict[b] = splitpoints
+        return thrsdict
+
     def compute(self):
-        mss = MSSelector(self.traces)
-        thresholds_dict = {b: mss.select(b)
-                          for b in self.backends}
+        thresholds_dict = self.create_thrsdict()
         cache = self.createCache(thresholds_dict)
         ga = GAImpl(self.backends, thresholds_dict, cache)
         pheno, fmeasure, prec, rec = max(ga.compute(), key=lambda x: x[1])

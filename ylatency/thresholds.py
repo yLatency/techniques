@@ -25,4 +25,4 @@ class MSSelector:
                 split_points[label] = min(val, split_points[label])
     
         sp = split_points.values()
-        return list(sp)
+        return list(sp)[1:]
