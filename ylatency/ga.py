@@ -2,6 +2,7 @@ import random
 from functools import reduce
 from pyspark.sql.functions import col
 from deap import base, creator, tools, algorithms
+import copy
 
 from ylatency.thresholds import MSSelector
 
@@ -207,24 +208,34 @@ class GAImpl:
         self.toolbox.register("evaluate", evaluate)
 
     def genoToPheno(self, ind):
-        return [self.thresholdsDict[b][i] for i, b in zip(ind, self.backends)]
+        pheno = set()
+        for bi, fi, ti in ind:
+            b = self.backends[bi]
+            from_ = self.thresholdsDict[b][fi]
+            to = self.thresholdsDict[b][ti]
+            pheno.add((b, from_, to))
+        return pheno
 
-    def compute(self, popSize=100, maxGen=400, mutProb=0.2):
+    def compute(self, popSize=100, maxGen=400, mutProb=0.2, stats=False):
+        if stats:
+            stats = tools.Statistics()
+            stats.register("pop", copy.deepcopy)
+        else:
+            stats = None
+
         self.toolbox.pop_size = popSize
         self.toolbox.max_gen = maxGen
         self.toolbox.mut_prob = mutProb
         pop = self.toolbox.population(n=self.toolbox.pop_size)
         pop = self.toolbox.select(pop, len(pop))
-        res, _ = algorithms.eaMuPlusLambda(pop, self.toolbox, mu=self.toolbox.pop_size,
+        res, logbook = algorithms.eaMuPlusLambda(pop, self.toolbox, mu=self.toolbox.pop_size,
                                            lambda_=self.toolbox.pop_size,
                                            cxpb=1 - self.toolbox.mut_prob,
                                            mutpb=self.toolbox.mut_prob,
-                                           stats=None,
+                                           stats=stats,
                                            ngen=self.toolbox.max_gen,
                                            verbose=None)
-        return [(self.genoToPheno(ind), self.fitnessUtils.computeFMeasure(ind), *self.fitnessUtils.computePrecRec(ind))
-                for ind in res]
-
+        return res, logbook
 
 class GA:
 
@@ -258,7 +269,13 @@ class GA:
         thresholds_dict = self.create_thrsdict()
         cache = self.createCache(thresholds_dict)
         ga = GAImpl(self.backends, thresholds_dict, cache)
-        pheno, fmeasure, prec, rec = max(ga.compute(), key=lambda x: x[1])
+        res, _ = ga.compute()
+        parsed_res = [(ga.genoToPheno(ind),
+                       ga.fitnessUtils.computeFMeasure(ind),
+                       *ga.fitnessUtils.computePrecRec(ind))
+                      for ind in res]
+
+        pheno, fmeasure, prec, rec = max(parsed_res, key=lambda x: x[1])
         return (pheno,
                 fmeasure,
                 prec,
