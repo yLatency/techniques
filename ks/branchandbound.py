@@ -51,6 +51,10 @@ class BranchAndBound:
         metrics = self.metrics.compute(features)
         return Explanation(features, *metrics)
 
+    def bestSol(self):
+        #TODO consistent data format with GA
+        return self.bestExp.features, self.bestExp.fmeasure, self.bestExp.precision, self.bestExp.recall
+
     def compute(self):
         emptyExp = self.createEmptyExp()
         rootNode = self.createFirstNode(emptyExp)
@@ -69,4 +73,4 @@ class BranchAndBound:
                     mu = min(node.mu, self.metrics.posCount / exp.precision)
                     childNode = node.createChild(exp, features.copy(), mu)
                     self.queue.append(childNode)
-        return self.bestExp
+        return self.bestSol()

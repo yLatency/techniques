@@ -25,7 +25,7 @@ class RangeAnalysis:
                              self.frontend,
                              from_,
                              to).compute()
-        return exp.features, exp.fmeasure, exp.precision, exp.recall
+        return exp
 
     def _computeBestSplits(self, i, f):
         if i == 0:
