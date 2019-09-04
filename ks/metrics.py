@@ -2,30 +2,30 @@ from functools import reduce
 from pyspark.sql.functions import col
 
 class Metrics:
-    def __init__(self, traces, backends,
-                 thresholds, frontend, from_, to):
+    def __init__(self, traces, thresholds_dict, frontend, from_, to):
         self.posTraces = traces.filter((col(frontend) > from_) & (col(frontend) <= to))
         self.negTraces = traces.filter((col(frontend) <= from_) | (col(frontend) > to))
         self.posCount = self.posTraces.count()
-        self.thresholdDict = dict(zip(backends, thresholds))
+        self.thresholdDict = thresholds_dict
         self.frontend = frontend
         self.from_ = from_
         self.to = to
         if self.posCount <= 0:
             raise Exception('No positives')
 
-    def _countAboveThresholds(self, traces, features):
-        filtered = reduce(lambda df, b: df.filter(col(b) >= self.thresholdDict[b]),
-                          features,
+    def _countInInterval(self, traces, expl):
+        filtered = reduce(lambda df, bft: df.filter(col(bft[0]) >= bft[1])
+                                            .filter(col(bft[0]) < bft[2]),
+                          expl,
                           traces)
         return filtered.count()
 
-    def _computeTpAndFp(self, features):
-        return (self._countAboveThresholds(traces, features)
+    def _computeTpAndFp(self, expl):
+        return (self._countInInterval(traces, expl)
                 for traces in [self.posTraces, self.negTraces])
 
-    def compute(self, features):
-        tp, fp = self._computeTpAndFp(features)
+    def compute(self, expl):
+        tp, fp = self._computeTpAndFp(expl)
         rec = tp / self.posCount
         prec = tp / (tp + fp) if (tp + fp) > 0 else 0
         fmeasure = 2 * (prec * rec) / (prec + rec) if prec > 0 or rec > 0 else 0
@@ -33,7 +33,7 @@ class Metrics:
         return fmeasure, prec, rec, support
 
 
-class Explanation:
+class FeatAndMetrics:
     def __init__(self, features, fmeasure, precision, recall, support):
         self.features = features
         self.fmeasure = fmeasure

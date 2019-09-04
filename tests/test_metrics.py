@@ -12,33 +12,47 @@ class TestMetrics(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.spark = (SparkSession.builder
-                                 .master('local[2]')
-                                 .appName('my-local-testing-pyspark-context')
-                                 .getOrCreate())
+                     .master('local[2]')
+                     .appName('my-local-testing-pyspark-context')
+                     .getOrCreate())
 
     def setUp(self):
-        traces = self.spark.read.parquet('dummy.parquet')
+        self.traces = self.spark.read.parquet('dummy.parquet')
         frontend = 'web-service_HomeControllerHome_avg_dur'
-        from_ = traces.approxQuantile([frontend], [0.5], 0)[0][0]
-        to = traces.select(frontend).rdd.max()[0]
+        from_ = self.traces.approxQuantile([frontend], [0.5], 0)[0][0]
+        to = self.traces.select(frontend).rdd.max()[0]
 
-        self.backends = [c for c in traces.columns
+        self.backends = [c for c in self.traces.columns
                          if c != 'traceId' and c.endswith('avg_self_dur')]
-        self.thresholds = [qs[0] for qs in traces.approxQuantile(self.backends, [0.5], 0)]
 
-        self.metrics = Metrics(traces, self.backends, self.thresholds,
+        self.quantiles = [0.0, 0.4, 0.6, 0.8]
+
+        self.thresholds_dict = self.create_thr_dict()
+
+        self.metrics = Metrics(self.traces, self.thresholds_dict,
                                frontend, from_, to)
 
-        self.pos_traces = traces.filter((col(frontend) > from_) & (col(frontend) <= to))
-        self.neg_traces = traces.filter((col(frontend) <= from_) | (col(frontend) > to))
+        self.pos_traces = self.traces.filter((col(frontend) > from_) & (col(frontend) <= to))
+        self.neg_traces = self.traces.filter((col(frontend) <= from_) | (col(frontend) > to))
 
-    def compute_fmeasure(self, bt_comb):
-        tp = reduce(lambda df, bt: df.filter(col(bt[0]) >= bt[1]),
-                    bt_comb,
+    def create_thr_dict(self):
+        thresholds_lists = self.traces.approxQuantile(self.backends, self.quantiles, 0)
+        thr_dict = {}
+        for b, thresholds in zip(self.backends, thresholds_lists):
+            max_ = self.traces.select(b).rdd.max()[0] + 1
+            thr_dict[b] = thresholds + [max_]
+
+        return thr_dict
+
+    def compute_fmeasure(self, expl):
+        reducefun = (lambda df, bft: df.filter(col(bft[0]) >= bft[1])
+                                       .filter(col(bft[0]) < bft[2]))
+        tp = reduce(reducefun,
+                    expl,
                     self.pos_traces).count()
 
-        fp = reduce(lambda df, bt: df.filter(col(bt[0]) >= bt[1]),
-                    bt_comb,
+        fp = reduce(reducefun,
+                    expl,
                     self.neg_traces).count()
 
         rec = tp / self.pos_traces.count()
@@ -48,13 +62,15 @@ class TestMetrics(TestCase):
 
     def test_compute(self):
         random.seed(10)
-        bt_all = list(zip(self.backends, self.thresholds))
         for _ in range(10):
-            bt_comb = random.choices(bt_all, k=3)
-            backend_comb = {b for b, t in bt_comb}
-            fmeasure = self.compute_fmeasure(bt_comb)
+            backends = random.sample(self.backends, k=3)
+            expl = set()
+            for b in backends:
+                interval = sorted(random.sample(self.thresholds_dict[b], k=2))
+                expl.add((b, *interval))
 
-            self.assertEqual(fmeasure, self.metrics.compute(backend_comb)[0])
+            fm = self.compute_fmeasure(expl)
+            self.assertEqual(fm, self.metrics.compute(expl)[0])
 
     @classmethod
     def tearDownClass(cls):
