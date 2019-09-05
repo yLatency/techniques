@@ -10,21 +10,18 @@ class RangeAnalysis:
         self.frontend = frontend
         self.splitPoints = splitPoints
 
-    def _explainSingleIntervalGA(self, from_, to,  bandwidth):
+    def _explainSingleIntervalGA(self, from_, to, thresholds_dict):
         ga = GA(self.traces,
                 self.backends,
                 self.frontend,
-                from_, to,
-                bandwidth)
-        return ga.compute()
+                thresholds_dict)
+        return ga.compute(from_, to)
 
     def _explainSingleIntervalBnB(self, from_, to, thresholds_dict):
-        exp = BranchAndBound(self.traces,
-                             thresholds_dict,
+        bnb = BranchAndBound(self.traces,
                              self.frontend,
-                             from_,
-                             to).compute()
-        return exp
+                             thresholds_dict)
+        return bnb.compute(from_, to)
 
     def _computeBestSplits(self, i, f):
         if i == 0:
@@ -43,9 +40,9 @@ class RangeAnalysis:
 
             return bestSelectedSplits, bestSumFMeas, bestExplanations
 
-    def explainsWithGA(self, bandwidth=10):
+    def explainsWithGA(self, thresholds_dict,  bandwidth=10):
         n = len(self.splitPoints) - 1
-        f = lambda from_, to: self._explainSingleIntervalGA(from_, to,  bandwidth)
+        f = lambda from_, to: self._explainSingleIntervalGA(from_, to, thresholds_dict,  bandwidth)
         return self._computeBestSplits(n, f)
 
     def explainsWithBnB(self, thresholds_dict):

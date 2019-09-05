@@ -15,11 +15,21 @@ class Node:
 
 
 class BranchAndBound:
-    def __init__(self, traces, threshold_dict, frontend, from_, to):
-        self.metrics = Metrics(traces, threshold_dict , frontend, from_, to)
+    def __init__(self, traces, frontend, threshold_dict):
+        self.traces = traces
+        self.frontend = frontend
+        self.threshold_dict = threshold_dict
         self.features = self.createFeatures(threshold_dict)
+        self.metrics = None
         self.bestExp = None
         self.queue = None
+
+    def initMetrics(self, from_, to):
+        self.metrics = Metrics(self.traces,
+                               self.threshold_dict,
+                               self.frontend,
+                               from_,
+                               to)
 
     @staticmethod
     def createFeatures(threshold_dict):
@@ -65,7 +75,8 @@ class BranchAndBound:
         #TODO consistent data format with GA
         return self.bestExp.features, self.bestExp.fmeasure, self.bestExp.precision, self.bestExp.recall
 
-    def compute(self):
+    def compute(self, from_, to):
+        self.initMetrics(from_, to)
         emptyExp = self.createEmptyExp()
         rootNode = self.createFirstNode(emptyExp)
         self.bestExp = emptyExp

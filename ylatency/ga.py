@@ -4,8 +4,6 @@ from pyspark.sql.functions import col
 from deap import base, creator, tools, algorithms
 import copy
 
-from ylatency.thresholds import MSSelector
-
 
 class CacheMaker:
     def __init__(self, traces, backends,
@@ -250,30 +248,23 @@ class GAImpl:
 class GA:
 
     def __init__(self, traces, backends,
-                 frontend, from_, to, bandwidth=10):
+                 frontend, thresholds_dict):
         self.traces = traces
         self.backends = backends
         self.frontend = frontend
-        self.from_ = from_
-        self.to = to
-        self.bandwidth = bandwidth
+        self.thresholds_dict = thresholds_dict
 
-    def createCache(self, thresholdsDict):
+    def createCache(self, from_, to):
         cacheMaker = CacheMaker(self.traces,
                                 self.backends,
                                 self.frontend,
-                                self.from_,
-                                self.to)
-        return cacheMaker.create(thresholdsDict)
+                                from_,
+                                to)
+        return cacheMaker.create(self.thresholds_dict)
 
-    def create_thrsdict(self):
-        mss = MSSelector(self.traces, self.bandwidth)
-        return mss.select_foreach(self.backends)
-
-    def compute(self):
-        thresholds_dict = self.create_thrsdict()
-        cache = self.createCache(thresholds_dict)
-        ga = GAImpl(self.backends, thresholds_dict, cache)
+    def compute(self, from_, to):
+        cache = self.createCache(from_, to)
+        ga = GAImpl(self.backends, self.thresholds_dict, cache)
         res, _ = ga.compute()
         parsed_res = [(ga.genoToPheno(ind),
                        ga.fitnessUtils.computeFMeasure(ind),
