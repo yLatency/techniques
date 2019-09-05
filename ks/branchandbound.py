@@ -32,7 +32,9 @@ class BranchAndBound:
 
 
     def updateBestSol(self, exp):
-        if self.bestExp is None or self.bestExp.fmeasure <= exp.fmeasure:
+        if self.bestExp is None or self.bestExp.fmeasure < exp.fmeasure:
+            self.bestExp = exp
+        elif self.bestExp.fmeasure == exp.fmeasure and len(self.bestExp.features) > len(exp.features):
             self.bestExp = exp
 
     def checkRecallBound(self, exp):
