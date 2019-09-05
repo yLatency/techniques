@@ -18,10 +18,9 @@ class RangeAnalysis:
                 bandwidth)
         return ga.compute()
 
-    def _explainSingleIntervalBnB(self, from_, to, thresholds):
+    def _explainSingleIntervalBnB(self, from_, to, thresholds_dict):
         exp = BranchAndBound(self.traces,
-                             self.backends,
-                             thresholds,
+                             thresholds_dict,
                              self.frontend,
                              from_,
                              to).compute()
@@ -49,7 +48,7 @@ class RangeAnalysis:
         f = lambda from_, to: self._explainSingleIntervalGA(from_, to,  bandwidth)
         return self._computeBestSplits(n, f)
 
-    def explainsWithBnB(self, thresholds):
+    def explainsWithBnB(self, thresholds_dict):
         n = len(self.splitPoints) - 1
-        f = lambda from_, to: self._explainSingleIntervalBnB(from_, to, thresholds)
+        f = lambda from_, to: self._explainSingleIntervalBnB(from_, to, thresholds_dict)
         return self._computeBestSplits(n, f)
