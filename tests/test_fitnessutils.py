@@ -21,7 +21,7 @@ class TestFitnessUtils(TestCase):
         from_ = self.traces.approxQuantile([self.frontend], [0.5], 0)[0][0]
         to = self.traces.select(self.frontend).rdd.max()[0]
         self.interval = (from_, to)
-        self.quantiles = [0.4, 0.6, 0.8]
+        self.quantiles = [0.5]
 
         self.backends = [c for c in self.traces.columns
                          if c.endswith('avg_self_dur')]
@@ -37,8 +37,11 @@ class TestFitnessUtils(TestCase):
         thresholds_lists = self.traces.approxQuantile(self.backends, self.quantiles, 0)
         thr_dict = {}
         for b, thresholds in zip(self.backends, thresholds_lists):
+            min_ = self.traces.select(b).rdd.min()[0]
             max_ = self.traces.select(b).rdd.max()[0] + 1
-            thr_dict[b] = thresholds + [max_]
+            thr_dict[b] = [min_]
+            thr_dict[b] += thresholds
+            thr_dict[b] += [max_]
 
         return thr_dict
 
@@ -70,7 +73,7 @@ class TestFitnessUtils(TestCase):
                       traces)
 
     def create_ind(self):
-        return {(0, 0, 2), (2, 2, 3), (5, 1, 2)}
+        return {(0, 1, 2), (2, 1, 2)}
 
     def test_compute_tp(self):
 
