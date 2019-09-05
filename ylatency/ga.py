@@ -131,7 +131,7 @@ class GAImpl:
             bi = random.choice(indexes)
             b = self.backends[bi]
             thresholds = self.thresholdsDict[b]
-            if len(thresholds) > 1:
+            if len(thresholds) > 2:
                 from_, to = self.rdm_interval(thresholds)
                 cond = (bi, from_, to)
         return cond
@@ -181,6 +181,15 @@ class GAImpl:
                 newcond = (rdmcond[0], *sorted(interval))
                 individual.add(newcond)
 
+    def feasible(self, individual):
+        for bi, fi, ti in individual:
+            b = self.backends[bi]
+            thresholds = self.thresholdsDict[b]
+            if fi == 0 and ti == len(thresholds)-1:
+                return False
+
+        return True
+
     def registerAttributes(self):
         self.toolbox.register("attribute", self.rdm_cond)
 
@@ -206,6 +215,7 @@ class GAImpl:
     def registerEvaluate(self):
         evaluate = lambda ind: (self.fitnessUtils.computeFMeasure(ind),)
         self.toolbox.register("evaluate", evaluate)
+        self.toolbox.decorate("evaluate", tools.DeltaPenalty(self.feasible, 0.0))
 
     def genoToPheno(self, ind):
         pheno = set()
@@ -270,7 +280,7 @@ class GA:
                        *ga.fitnessUtils.computePrecRec(ind))
                       for ind in res]
 
-        pheno, fmeasure, prec, rec = max(parsed_res, key=lambda x: x[1])
+        pheno, fmeasure, prec, rec = max(parsed_res, key=lambda x: (x[1], -len(x[0])))
         return (pheno,
                 fmeasure,
                 prec,
