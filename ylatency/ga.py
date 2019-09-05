@@ -253,6 +253,8 @@ class GA:
         self.backends = backends
         self.frontend = frontend
         self.thresholds_dict = thresholds_dict
+        self.logbook = None
+        self.fu = None
 
     def createCache(self, from_, to):
         cacheMaker = CacheMaker(self.traces,
@@ -262,10 +264,17 @@ class GA:
                                 to)
         return cacheMaker.create(self.thresholds_dict)
 
-    def compute(self, from_, to):
+    def compute(self, from_, to, stats=False):
         cache = self.createCache(from_, to)
         ga = GAImpl(self.backends, self.thresholds_dict, cache)
-        res, _ = ga.compute()
+        res, logbook = ga.compute(stats=stats)
+        if stats:
+            self.logbook = logbook
+            self.fu = ga.fitnessUtils
+        else:
+            self.logbook = None
+            self.fu = None
+
         parsed_res = [(ga.genoToPheno(ind),
                        ga.fitnessUtils.computeFMeasure(ind),
                        *ga.fitnessUtils.computePrecRec(ind))
