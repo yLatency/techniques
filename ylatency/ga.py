@@ -258,12 +258,7 @@ class GA:
 
     def create_thrsdict(self):
         mss = MSSelector(self.traces, self.bandwidth)
-        thrsdict = {}
-        for b in self.backends:
-            splitpoints = mss.select(b)
-            splitpoints += [self.traces.select(b).rdd.max()[0]+1]
-            thrsdict[b] = splitpoints
-        return thrsdict
+        return mss.select_foreach(self.backends)
 
     def compute(self):
         thresholds_dict = self.create_thrsdict()

@@ -23,6 +23,12 @@ class MSSelector:
                 split_points[label] = val
             else:
                 split_points[label] = min(val, split_points[label])
-    
-        sp = split_points.values()
-        return list(sp)[1:]
+        min_ = self.traces.select(col).rdd.min()[0]
+        max_ = self.traces.select(col).rdd.max()[0]
+        sp = [min_]
+        sp += list(split_points.values())
+        sp += [max_+ 1]
+        return sp
+
+    def select_foreach(self, cols):
+        return {c: self.select(c) for c in cols}
