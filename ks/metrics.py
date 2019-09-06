@@ -3,9 +3,10 @@ from pyspark.sql.functions import col
 
 class Metrics:
     def __init__(self, traces, thresholds_dict, frontend, from_, to):
-        self.posTraces = traces.filter((col(frontend) > from_) & (col(frontend) <= to))
-        self.negTraces = traces.filter((col(frontend) <= from_) | (col(frontend) > to))
-        self.posCount = self.posTraces.count()
+        df = traces.toPandas()
+        self.posTraces = df[(df[frontend] > from_) & (df[frontend] <= to)]
+        self.negTraces = df[(df[frontend] <= from_) | (df[frontend] > to)]
+        self.posCount = self.posTraces.count()[frontend]
         self.thresholdDict = thresholds_dict
         self.frontend = frontend
         self.from_ = from_
@@ -14,11 +15,10 @@ class Metrics:
             raise Exception('No positives')
 
     def _countInInterval(self, traces, expl):
-        filtered = reduce(lambda df, bft: df.filter(col(bft[0]) >= bft[1])
-                                            .filter(col(bft[0]) < bft[2]),
+        filtered = reduce(lambda df, bft: df[(df[bft[0]] >= bft[1]) & (df[bft[0]] < bft[2])],
                           expl,
                           traces)
-        return filtered.count()
+        return filtered.count()[self.frontend]
 
     def _computeTpAndFp(self, expl):
         return (self._countInInterval(traces, expl)
