@@ -26,7 +26,7 @@ class MSSelector:
         max_ = self.traces.select(col).rdd.max()[0]
         sp = list(split_points.values())
         sp += [max_ + 1]
-        return sp
+        return sorted(sp)
 
     def select_foreach(self, cols):
         return {c: self.select(c) for c in cols}
