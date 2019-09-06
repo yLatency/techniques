@@ -92,6 +92,10 @@ class BranchAndBound:
                     self.updateBestSol(exp)
                     features.remove(featureToAdd)
                     mu = min(node.mu, self.metrics.posCount / exp.precision)
-                    childNode = node.createChild(exp, features.copy(), mu)
+                    withoutRelated = self.withoutRelated(features, featureToAdd)
+                    childNode = node.createChild(exp, withoutRelated, mu)
                     self.queue.append(childNode)
         return self.bestSol()
+
+    def withoutRelated(self, features, featureRemoved):
+        return {f for f in features if f[0] != featureRemoved[0]}
