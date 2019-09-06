@@ -1,5 +1,4 @@
 from functools import reduce
-from pyspark.sql.functions import col
 
 class Metrics:
     def __init__(self, traces, thresholds_dict, frontend, from_, to):
