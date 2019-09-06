@@ -1,23 +1,22 @@
 import random
 from functools import reduce
-from pyspark.sql.functions import col
 from deap import base, creator, tools, algorithms
 import copy
-
+from operator import add
 
 class CacheMaker:
     def __init__(self, traces, backends,
                  frontend, from_, to):
-        self.traces = traces
+        self.traces = traces.toPandas()
         self.frontend = frontend
         self.backends = backends
         self.from_ = from_
         self.to = to
 
     def create(self, thr_dict):
-        pos = self.get_positives().count()
+        pos = self.get_positives().count()[self.frontend]
         cache = {'p': pos,
-                 'n': self.traces.count() - pos}
+                 'n': self.traces.count()[self.frontend] - pos}
 
         for b in self.backends:
             tp_intlist = self.create_tp(b, thr_dict[b])
@@ -29,22 +28,27 @@ class CacheMaker:
         return cache
 
     def get_positives(self):
-        return (self.traces.filter((col(self.frontend) > self.from_) &
-                                   (col(self.frontend) <= self.to)))
+        df = self.traces
+        return df[(df[self.frontend] > self.from_) & (df[self.frontend] <= self.to)]
+
+    def get_negatives(self):
+        df = self.traces
+        return df[(df[self.frontend] <= self.from_) | (df[self.frontend] > self.to)]
 
     def create_tp(self, backend, thresholds):
         pos = self.get_positives()
         return self.create_bitslists(pos, backend, thresholds)
 
-    def create_bitslists(self, filtered_traces, backend, thresholds):
-        sorted_traces = filtered_traces.sort('traceId')
-        list_bitstring = (sorted_traces.rdd.map(lambda row: ['1' if row[backend] >= t else '0' for t in thresholds])
-                                           .reduce(lambda x, y: [a + b for a, b in zip(x, y)]))
-        return [int(bs, 2) for bs in list_bitstring]
+    def create_bitslists(self, df, backend, thresholds):
+        list_bitstring = []
+        for t in thresholds:
+            bitstring = reduce(add, df[backend].map(lambda x: '1' if x >= t else '0'))
+            num = int(bitstring, 2)
+            list_bitstring.append(num)
+        return list_bitstring
 
     def create_fp(self, backend, thresholds):
-        neg = self.traces.filter((col(self.frontend) <= self.from_) |
-                                 (col(self.frontend) > self.to))
+        neg = self.get_negatives()
         return self.create_bitslists(neg, backend, thresholds)
 
 
