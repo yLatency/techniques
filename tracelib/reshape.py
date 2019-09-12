@@ -23,7 +23,8 @@ def loadSpansByInterval(from_, to, spark):
             .option("es.resource", "zipkin*")
             .load()
             .select('traceId',
-                    f.concat_ws('_', *['localEndpoint.serviceName', 'name']).alias('endpoint'),
+                    # f.concat_ws('_', *['localEndpoint.serviceName', 'name']).alias('endpoint'),
+                    f.col('name').alias('endpoint'),
                     'duration',
                     'id',
                     'kind',
@@ -101,16 +102,32 @@ def craeteServerSpansWithClientsDuration(spans):
             .drop('parentId')
             .na.fill(0))
 
+
 def round_to_millis(traces):
     cols = [c for c in traces.columns if c != 'traceId' and c != 'experiment']
     return reduce(lambda df, c: df.withColumn(c, f.round(f.col(c) / 1000)),
                   cols,
                   traces)
 
-def create_traces(from_, to, spark):
+
+def create_avg_traces(from_, to, spark):
     spans = loadSpansByInterval(from_, to, spark)
     traces_micros = createEndpointTraces(spans)
     traces_millis = round_to_millis(traces_micros)
     spans_exp = loadExperimentSpans(from_, to, spark)
 
-    return traces_millis.join( spans_exp, on='traceId')
+    return traces_millis.join(spans_exp, on='traceId')
+
+
+def create_sum_traces(from_, to, spark):
+    spans = loadSpansByInterval(from_, to, spark)
+    traces_micros = (spans.filter(spans.kind == 'SERVER')
+                          .groupBy('traceId', 'endpoint')
+                          .agg(f.sum('duration').alias('duration'))
+                          .groupby('traceId')
+                          .pivot('endpoint')
+                          .agg(f.first('duration')))
+    traces_millis = round_to_millis(traces_micros)
+    spans_exp = loadExperimentSpans(from_, to, spark)
+
+    return traces_millis.join(spans_exp, on='traceId')
