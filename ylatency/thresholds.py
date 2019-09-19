@@ -3,7 +3,7 @@ import numpy as np
 from operator import itemgetter
 
 class MSSelector:
-    def __init__(self, traces, bandwidth=10, min_bin_freq=None):
+    def __init__(self, traces, bandwidth=None, min_bin_freq=None):
         min_bin_freq = min_bin_freq or traces.count()*0.01
         self.traces = traces
         self.ms = MeanShift(bandwidth=bandwidth,
