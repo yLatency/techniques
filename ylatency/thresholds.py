@@ -1,10 +1,9 @@
-from sklearn.cluster import MeanShift
+from sklearn.cluster import MeanShift, estimate_bandwidth
 import numpy as np
 from operator import itemgetter
 
 class MSSelector:
-    def __init__(self, traces, bandwidth=None, min_bin_freq=None):
-        min_bin_freq = min_bin_freq or traces.count()*0.01
+    def __init__(self, traces, bandwidth=None, min_bin_freq=1):
         self.traces = traces
         self.ms = MeanShift(bandwidth=bandwidth,
                             bin_seeding=True,
