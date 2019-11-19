@@ -3,7 +3,7 @@ from unittest import TestCase
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
-from ylatency.ga import FitnessUtils
+from ylatency.gautils import FitnessUtils
 from ylatency.thresholds import CacheMaker
 from functools import reduce
 
