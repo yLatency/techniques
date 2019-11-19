@@ -50,15 +50,6 @@ class GAImpl:
         self.toolbox.register("evaluate", evaluate)
         self.toolbox.decorate("evaluate", tools.DeltaPenalty(self.ops.feasible, 0.0))
 
-    def genoToPheno(self, ind):
-        pheno = set()
-        for bi, fi, ti in ind:
-            b = self.backends[bi]
-            from_ = self.thresholdsDict[b][fi]
-            to = self.thresholdsDict[b][ti]
-            pheno.add((b, from_, to))
-        return pheno
-
     def compute(self, popSize=100, maxGen=400, mutProb=0.2, stats=False):
         if stats:
             stats = tools.Statistics()
@@ -110,7 +101,7 @@ class GA:
             self.logbook = None
             self.fu = None
 
-        parsed_res = [(ga.genoToPheno(ind),
+        parsed_res = [(ga.ops.genoToPheno(ind),
                        ga.fitnessUtils.computeFMeasure(ind),
                        *ga.fitnessUtils.computePrecRec(ind))
                       for ind in res]

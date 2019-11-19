@@ -83,6 +83,15 @@ class Operators:
 
         return True
 
+    def genoToPheno(self, ind):
+        pheno = set()
+        for bi, fi, ti in ind:
+            b = self.backends[bi]
+            from_ = self.thresholdsDict[b][fi]
+            to = self.thresholdsDict[b][ti]
+            pheno.add((b, from_, to))
+        return pheno
+
 
 class FitnessUtils:
     def __init__(self, backends, cache):
