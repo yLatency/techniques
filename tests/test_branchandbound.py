@@ -39,14 +39,28 @@ class TestBranchAndBound(TestCase):
         self.assertEqual(expected, actual)
 
 
-    def test_best_solution(self):
+    def test_compute(self):
         frontendSLA = self.traces.approxQuantile([self.frontend], [0.5], 0)[0][0]
         maxlat = self.traces.select(self.frontend).rdd.max()[0]
 
 
-        bestExpBnB = BranchAndBound(self.traces, self.frontend, self.thresholds_dict).compute(frontendSLA, maxlat)
+        res = BranchAndBound(self.traces, self.frontend, self.thresholds_dict).compute(frontendSLA, maxlat)
 
-        print(bestExpBnB)
+        # test set of conditions
+        self.assertIsInstance(res[0], frozenset)
+        for col, from_, to in res[0]:
+            self.assertIsInstance(col, str)
+            self.assertIsInstance(from_, float)
+            self.assertIsInstance(to, float)
+
+        # fmeasure
+        self.assertTrue(0 <= res[1] <= 1)
+
+        # precision
+        self.assertTrue(0 <= res[2] <= 1)
+
+        # recall
+        self.assertTrue(0 <= res[3] <= 1)
 
 
     @classmethod

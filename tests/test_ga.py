@@ -38,7 +38,12 @@ class TestBranchAndBound(TestCase):
 
         res = GA(self.traces, self.backends, self.frontend, self.thresholds_dict).compute(frontendSLA, maxlat)
 
+        # test set of conditions
         self.assertIsInstance(res[0], set)
+        for col, from_, to in res[0]:
+            self.assertIsInstance(col, str)
+            self.assertIsInstance(from_, float)
+            self.assertIsInstance(to, float)
 
         # fmeasure
         self.assertTrue(0 <= res[1] <= 1)
