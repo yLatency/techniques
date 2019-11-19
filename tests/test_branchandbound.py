@@ -44,8 +44,7 @@ class TestBranchAndBound(TestCase):
         maxlat = self.traces.select(self.frontend).rdd.max()[0]
 
 
-        bestExpBnB = BranchAndBound(self.traces, self.thresholds_dict, self.frontend,
-                                    frontendSLA, maxlat).compute()
+        bestExpBnB = BranchAndBound(self.traces, self.frontend, self.thresholds_dict).compute(frontendSLA, maxlat)
 
         print(bestExpBnB)
 
