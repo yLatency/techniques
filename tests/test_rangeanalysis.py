@@ -67,7 +67,7 @@ class TestRangeAnalysis(TestCase):
             # recall
             self.assertTrue(0 <= res[3] <= 1)
 
-            print(res)
+        print(selectedsplitpoints, fscores_sum)
 
     def test_compute_bnb(self):
 
@@ -102,7 +102,7 @@ class TestRangeAnalysis(TestCase):
             # recall
             self.assertTrue(0 <= res[3] <= 1)
 
-            print(res)
+        print(selectedsplitpoints, fscores_sum)
 
     @classmethod
     def tearDownClass(cls):
