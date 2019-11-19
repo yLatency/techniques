@@ -7,8 +7,6 @@ from ylatency.thresholds import CacheMaker
 
 class GAImpl:
     def __init__(self, backends, thresholdsDict, cache):
-        self.backends = backends
-        self.thresholdsDict = thresholdsDict
         self.fitnessUtils = FitnessUtils(backends, cache)
         self.ops = Operators(backends, thresholdsDict)
         self.initGA()
