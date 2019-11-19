@@ -9,7 +9,6 @@ class GAImpl:
     def __init__(self, backends, thresholdsDict, cache):
         self.backends = backends
         self.thresholdsDict = thresholdsDict
-        self.thresholdSizes = {b: len(thresholdsDict[b]) for b in backends}
         self.fitnessUtils = FitnessUtils(backends, cache)
         self.ops = Operators(backends, thresholdsDict)
         self.initGA()

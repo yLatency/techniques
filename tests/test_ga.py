@@ -4,7 +4,7 @@ from pyspark.sql import SparkSession
 
 from ylatency.ga import GA
 
-class TestBranchAndBound(TestCase):
+class TestGA(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.spark = (SparkSession.builder
