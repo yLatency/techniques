@@ -1,10 +1,10 @@
 from unittest import TestCase
 from ylatency.grautils import FitnessUtils
 
+
 class TestFitnessUtils(TestCase):
     def setUp(self):
         pass
-
 
     def test_cardinality_zero(self):
         bitstring = int('000', base=2)
@@ -26,7 +26,6 @@ class TestFitnessUtils(TestCase):
 
         res = FitnessUtils._recall(tplist, num_pos)
         self.assertEqual(0, res)
-
 
     def test_recall_half(self):
         tp1 = int('1000', base=2)
@@ -63,7 +62,6 @@ class TestFitnessUtils(TestCase):
         res = FitnessUtils._precision(tplist, fplist)
         self.assertEqual(0, res)
 
-
     def test_precision_half(self):
         tp1 = int('10', base=2)
         tp2 = int('01', base=2)
@@ -90,7 +88,6 @@ class TestFitnessUtils(TestCase):
         res = FitnessUtils._precision(tplist, fplist)
         self.assertEqual(1, res)
 
-
     def test_disjointess_zero(self):
         tp1 = int('10', base=2)
         tp2 = int('10', base=2)
@@ -103,7 +100,6 @@ class TestFitnessUtils(TestCase):
 
         res = FitnessUtils._disjointness(tplist, fplist)
         self.assertEqual(0, res)
-
 
     def test_disjointess_half(self):
         tp1 = int('10', base=2)
@@ -131,4 +127,27 @@ class TestFitnessUtils(TestCase):
         res = FitnessUtils._disjointness(tplist, fplist)
         self.assertEqual(1, res)
 
+    def test_satisfy_expl(self):
+        hashtable = {('col1', 0): int('111', base=2),
+                     ('col1', 1): int('101', base=2),
+                     ('col2', 0): int('111', base=2),
+                     ('col2', 1): int('001', base=2)}
+        cond1 = ('col1', 0, 1)
+        cond2 = ('col2', 0, 1)
+        expl = frozenset({cond1, cond2})
 
+        expected = int('010', base=2)
+        actual = FitnessUtils._satisfy_expl(expl, hashtable)
+
+        self.assertEqual(expected, actual)
+
+
+    def test_satisfy_cond(self):
+        hashtable = {('col1', 0): int('111', base=2),
+                     ('col1', 1): int('101', base=2)}
+
+        cond = ('col1', 0, 1)
+        expected = int('010', base=2)
+        actual = FitnessUtils._satisfy_cond(cond, hashtable)
+
+        self.assertEqual(expected, actual)

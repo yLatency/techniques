@@ -9,19 +9,29 @@ class FitnessUtils:
 
     def _tplist(self, explset):
         sorted_explset = sorted(explset, key=str)
-        return [self.satisfy_expl(expl, self.pos_hashtable) for expl in sorted_explset]
+        return [self._satisfy_expl(expl, self.pos_hashtable) for expl in sorted_explset]
 
     def _fplist(self, explset):
         sorted_explset = sorted(explset, key=str)
-        return [self.satisfy_expl(expl, self.neg_hashtable) for expl in sorted_explset]
+        return [self._satisfy_expl(expl, self.neg_hashtable) for expl in sorted_explset]
 
     # number of bit equal one
     @classmethod
     def _cardinality(cls, bitstring):
         return bin(bitstring).count('1')
 
-    def satisfy_expl(self, expl, hashtable):
-        pass
+    @classmethod
+    def _satisfy_expl(cls, expl, hashtable):
+        bs_list = [cls._satisfy_cond(cond, hashtable) for cond in expl]
+        return reduce(lambda x, y: x & y, bs_list)
+
+    @classmethod
+    def _satisfy_cond(cls, cond, hashtable):
+        col, idx_min, idx_max = cond
+        bs_min = hashtable[col, idx_min]
+        bs_max = hashtable[col, idx_max]
+        return bs_min & ~ bs_max
+
 
     @classmethod
     def _recall(cls, tplist, num_pos):
