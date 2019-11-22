@@ -43,6 +43,8 @@ class CacheMaker:
         self.from_ = from_
         self.to = to
 
+    # it returns a single hashtable where keys are pair (col, indexofthreshold)
+    # and values are pairs (bitstring positives, bitstring negatives)
     def create(self, thr_dict):
         pos = self._get_positives().count()[self.frontend]
         cache = {'p': pos,
@@ -57,6 +59,22 @@ class CacheMaker:
 
         return cache
 
+    # it returns a hashtable where keys are pair (col, threshold) and values are bitstrings representing positives
+    def hashtable_pos(self, thr_dict):
+        return self._hashtable(thr_dict, positives=True)
+
+    # it returns a hashtable where keys are pair (col, threshold) and values are bitstrings representing negatives
+    def hashtable_neg(self, thr_dict):
+        return self._hashtable(thr_dict, positives=False)
+
+    def _hashtable(self, thr_dict, positives=True):
+        hashtable = {'cardinality':  self._count_positives() if positives else self._count_negatives()}
+        create_bitstrings = self._create_tp if positives else self._create_fp
+        for b in self.backends:
+            bitstrings = create_bitstrings(b, thr_dict[b])
+            for bs, t in zip(thr_dict[b], bitstrings):
+                hashtable[b, t] = bs
+
     def _get_positives(self):
         df = self.traces
         return df[(df[self.frontend] > self.from_) & (df[self.frontend] <= self.to)]
@@ -64,6 +82,12 @@ class CacheMaker:
     def _get_negatives(self):
         df = self.traces
         return df[(df[self.frontend] <= self.from_) | (df[self.frontend] > self.to)]
+
+    def _count_positives(self):
+        return self._get_positives().count()[self.frontend]
+
+    def _count_negatives(self):
+        return self._get_negatives().count()[self.frontend]
 
     def _create_tp(self, backend, thresholds):
         pos = self._get_positives()

@@ -29,7 +29,7 @@ class TestCacheMaker(TestCase):
         oneone = int('11', 2)
         expected =[zerozero, zeroone, oneone]
 
-        list_tp = cm.create_tp(self.backend, thresholds)
+        list_tp = cm._create_tp(self.backend, thresholds)
 
         self.assertEqual(expected, list_tp)
 
@@ -45,7 +45,7 @@ class TestCacheMaker(TestCase):
         oneone = int('11', 2)
         expected =[zerozero, zeroone, oneone]
 
-        list_tp = cm.create_fp(self.backend, thresholds)
+        list_tp = cm._create_fp(self.backend, thresholds)
 
         self.assertEqual(expected, list_tp)
 
