@@ -34,7 +34,7 @@ class MSSelector:
         return {c: self.select(c) for c in cols}
 
 
-class CacheMaker:
+class Hashtable:
     def __init__(self, traces, backends,
                  frontend, from_, to):
         self.traces = traces.toPandas()
@@ -45,7 +45,7 @@ class CacheMaker:
 
     # it returns a single hashtable where keys are pair (col, indexofthreshold)
     # and values are pairs (bitstring positives, bitstring negatives)
-    def create(self, thr_dict):
+    def all_in_one(self, thr_dict):
         pos = self._get_positives().count()[self.frontend]
         cache = {'p': pos,
                  'n': self.traces.count()[self.frontend] - pos}
@@ -60,14 +60,14 @@ class CacheMaker:
         return cache
 
     # it returns a hashtable where keys are pair (col, threshold) and values are bitstrings representing positives
-    def hashtable_pos(self, thr_dict):
-        return self._hashtable(thr_dict, positives=True)
+    def positives(self, thr_dict):
+        return self._create_hashtable(thr_dict, positives=True)
 
     # it returns a hashtable where keys are pair (col, threshold) and values are bitstrings representing negatives
-    def hashtable_neg(self, thr_dict):
-        return self._hashtable(thr_dict, positives=False)
+    def negatives(self, thr_dict):
+        return self._create_hashtable(thr_dict, positives=False)
 
-    def _hashtable(self, thr_dict, positives=True):
+    def _create_hashtable(self, thr_dict, positives=True):
         hashtable = {'cardinality':  self._count_positives() if positives else self._count_negatives()}
         create_bitstrings = self._create_tp if positives else self._create_fp
         for b in self.backends:

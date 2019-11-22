@@ -2,7 +2,7 @@ from deap import base, creator, tools, algorithms
 import copy
 from ylatency.gautils import Operators, FitnessUtils
 
-from ylatency.thresholds import CacheMaker
+from ylatency.thresholds import Hashtable
 
 
 class GAImpl:
@@ -81,12 +81,12 @@ class GA:
         self.fu = None
 
     def createCache(self, from_, to):
-        cacheMaker = CacheMaker(self.traces,
-                                self.backends,
-                                self.frontend,
-                                from_,
-                                to)
-        return cacheMaker.create(self.thresholds_dict)
+        cacheMaker = Hashtable(self.traces,
+                               self.backends,
+                               self.frontend,
+                               from_,
+                               to)
+        return cacheMaker.all_in_one(self.thresholds_dict)
 
     def compute(self, from_, to, stats=False):
         cache = self.createCache(from_, to)

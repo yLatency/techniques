@@ -4,7 +4,7 @@ from unittest import TestCase
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 from ylatency.gautils import FitnessUtils
-from ylatency.thresholds import CacheMaker
+from ylatency.thresholds import Hashtable
 from functools import reduce
 
 
@@ -47,12 +47,12 @@ class TestFitnessUtils(TestCase):
         return thr_dict
 
     def create_cache(self):
-        cache_maker = CacheMaker(self.traces,
-                                 self.backends,
-                                 self.frontend,
-                                 *self.interval)
+        cache_maker = Hashtable(self.traces,
+                                self.backends,
+                                self.frontend,
+                                *self.interval)
 
-        return cache_maker.create(self.thr_dict)
+        return cache_maker.all_in_one(self.thr_dict)
 
     def decode_ind(self, ind):
         decoded = set()

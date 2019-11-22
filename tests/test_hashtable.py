@@ -1,9 +1,9 @@
 from unittest import TestCase
 from pyspark.sql import SparkSession
-from ylatency.thresholds import CacheMaker
+from ylatency.thresholds import Hashtable
 
 
-class TestCacheMaker(TestCase):
+class TestHashtable(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.spark = (SparkSession.builder
@@ -18,7 +18,7 @@ class TestCacheMaker(TestCase):
         self.traces = self.spark.createDataFrame([('1', 1000, 3000), ('2', 2000, 3000)], ['traceId', self.backend, self.frontend])
 
     def test_create_tp(self):
-        cm = CacheMaker(self.traces, [self.backend], self.frontend, 2000, 4000)
+        cm = Hashtable(self.traces, [self.backend], self.frontend, 2000, 4000)
         tzerozero= 3000
         tzeroone = 1500
         toneone = 1000
@@ -34,7 +34,7 @@ class TestCacheMaker(TestCase):
         self.assertEqual(expected, list_tp)
 
     def test_create_fp(self):
-        cm = CacheMaker(self.traces, [self.backend], self.frontend,  2000, 2500)
+        cm = Hashtable(self.traces, [self.backend], self.frontend, 2000, 2500)
         tzerozero= 3000
         tzeroone = 1500
         toneone = 1000
