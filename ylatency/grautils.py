@@ -7,13 +7,11 @@ class FitnessUtils:
         self.pos_hashtable = pos_hashtable
         self.neg_hashtable = neg_hashtable
 
-    def _tplist(self, explset):
-        sorted_explset = sorted(explset, key=str)
-        return [self._satisfy_expl(expl, self.pos_hashtable) for expl in sorted_explset]
+    def _tplist(self, expllist):
+        return [self._satisfy_expl(expl, self.pos_hashtable) for expl in expllist]
 
-    def _fplist(self, explset):
-        sorted_explset = sorted(explset, key=str)
-        return [self._satisfy_expl(expl, self.neg_hashtable) for expl in sorted_explset]
+    def _fplist(self, expllist):
+        return [self._satisfy_expl(expl, self.neg_hashtable) for expl in expllist]
 
     # number of bit equal one
     @classmethod
