@@ -134,7 +134,7 @@ class TestFitnessUtils(TestCase):
                      ('col2', 1): int('001', base=2)}
         cond1 = ('col1', 0, 1)
         cond2 = ('col2', 0, 1)
-        expl = frozenset({cond1, cond2})
+        expl = [cond1, cond2]
 
         expected = int('010', base=2)
         actual = FitnessUtils._satisfy_expl(expl, hashtable)
