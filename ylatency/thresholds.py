@@ -44,32 +44,32 @@ class CacheMaker:
         self.to = to
 
     def create(self, thr_dict):
-        pos = self.get_positives().count()[self.frontend]
+        pos = self._get_positives().count()[self.frontend]
         cache = {'p': pos,
                  'n': self.traces.count()[self.frontend] - pos}
 
         for b in self.backends:
-            tp_intlist = self.create_tp(b, thr_dict[b])
-            fp_intlist = self.create_fp(b, thr_dict[b])
+            tp_intlist = self._create_tp(b, thr_dict[b])
+            fp_intlist = self._create_fp(b, thr_dict[b])
             size = len(thr_dict[b])
             for i in range(size):
                 cache[b, i] = tp_intlist[i], fp_intlist[i]
 
         return cache
 
-    def get_positives(self):
+    def _get_positives(self):
         df = self.traces
         return df[(df[self.frontend] > self.from_) & (df[self.frontend] <= self.to)]
 
-    def get_negatives(self):
+    def _get_negatives(self):
         df = self.traces
         return df[(df[self.frontend] <= self.from_) | (df[self.frontend] > self.to)]
 
-    def create_tp(self, backend, thresholds):
-        pos = self.get_positives()
-        return self.create_bitslists(pos, backend, thresholds)
+    def _create_tp(self, backend, thresholds):
+        pos = self._get_positives()
+        return self._create_bitslists(pos, backend, thresholds)
 
-    def create_bitslists(self, df, backend, thresholds):
+    def _create_bitslists(self, df, backend, thresholds):
         list_bitstring = []
         for t in thresholds:
             bitstring = reduce(add, df[backend].map(lambda x: '1' if x >= t else '0'))
@@ -77,6 +77,6 @@ class CacheMaker:
             list_bitstring.append(num)
         return list_bitstring
 
-    def create_fp(self, backend, thresholds):
-        neg = self.get_negatives()
-        return self.create_bitslists(neg, backend, thresholds)
+    def _create_fp(self, backend, thresholds):
+        neg = self._get_negatives()
+        return self._create_bitslists(neg, backend, thresholds)
