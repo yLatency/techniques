@@ -55,25 +55,25 @@ class FitnessUtils:
         xfp_card = cls._cardinality(xfp)
         return (xtp_card + xfp_card) / (sum(tp_card) + sum(fp_card))
 
-    def recall(self, explset):
-        tplist = self._tplist(explset)
+    def recall(self, expllist):
+        tplist = self._tplist(expllist)
         num_pos = self.pos_hashtable['cardinality']
         return self._recall(tplist, num_pos)
 
-    def precision(self, explset):
-        tplist = self._tplist(explset)
-        fplist = self._fplist(explset)
+    def precision(self, expllist):
+        tplist = self._tplist(expllist)
+        fplist = self._fplist(expllist)
         return self._precision(tplist, fplist)
 
-    def disjointness(self, explset):
-        tplist = self._tplist(explset)
-        fplist = self._fplist(explset)
+    def disjointness(self, expllist):
+        tplist = self._tplist(expllist)
+        fplist = self._fplist(expllist)
         return self._disjointness(tplist, fplist)
 
-    def harmonic_mean(self, explset):
-        prec = self.precision(explset)
-        rec = self.recall(explset)
-        disj = self.disjointness(explset)
+    def harmonic_mean(self, expllist):
+        prec = self.precision(expllist)
+        rec = self.recall(expllist)
+        disj = self.disjointness(expllist)
 
         den = prec*rec + prec*disj + rec*disj
         num = 3*prec*rec*disj
