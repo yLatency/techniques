@@ -12,10 +12,7 @@ class MSSelector:
                             bin_seeding=True,
                             min_bin_freq=min_bin_freq)
 
-    def select(self, col):
-        it = map(itemgetter(col), self.traces.select(col).collect())
-        X = np.fromiter(it, float).reshape(-1, 1)
-    
+    def _select(self, X):
         self.ms.fit(X)
         split_points = {}
         for x in X:
@@ -25,10 +22,18 @@ class MSSelector:
                 split_points[label] = val
             else:
                 split_points[label] = min(val, split_points[label])
-        max_ = self.traces.select(col).rdd.max()[0]
         sp = list(split_points.values())
-        sp += [max_ + 1]
+        sp += [X.max() + 1]
         return sorted(sp)
+
+    def select(self, col):
+        it = map(itemgetter(col), self.traces.select(col).collect())
+        X = np.fromiter(it, float).reshape(-1, 1)
+        if X.min() == X.max():
+            sp = [X.min(), X.min()+1]  # Avoid bug bin_seeding
+        else:
+            sp = self._select(X)
+        return sp
 
     def select_foreach(self, cols):
         return {c: self.select(c) for c in cols}
