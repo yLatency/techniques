@@ -72,7 +72,7 @@ class Hashtable:
         create_bitstrings = self._create_tp if positives else self._create_fp
         for b in self.backends:
             bitstrings = create_bitstrings(b, thr_dict[b])
-            for bs, t in zip(thr_dict[b], bitstrings):
+            for t, bs in zip(thr_dict[b], bitstrings):
                 hashtable[b, t] = bs
         return hashtable
 
