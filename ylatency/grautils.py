@@ -25,9 +25,9 @@ class FitnessUtils:
 
     @classmethod
     def _satisfy_cond(cls, cond, hashtable):
-        col, idx_min, idx_max = cond
-        bs_min = hashtable[col, idx_min]
-        bs_max = hashtable[col, idx_max]
+        col, min_, max_ = cond
+        bs_min = hashtable[col, min_]
+        bs_max = hashtable[col, max_]
         return bs_min & ~ bs_max
 
 
