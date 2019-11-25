@@ -74,6 +74,7 @@ class Hashtable:
             bitstrings = create_bitstrings(b, thr_dict[b])
             for bs, t in zip(thr_dict[b], bitstrings):
                 hashtable[b, t] = bs
+        return hashtable
 
     def _get_positives(self):
         df = self.traces
