@@ -28,7 +28,9 @@ class Operator:
 
     def cx(self, ind1, ind2):
         if len(ind1) >= 1 or len(ind2) >= 1:
-            ind1, ind2 = cxOnePoint(ind1, ind2)
+            i = random.randrange(len(ind1))
+            j = random.randrange(len(ind2))
+            ind1[i], ind2[j] = ind2[j], ind1[i]
         return ind1, ind2
 
     def mut(self, ind):
@@ -36,6 +38,7 @@ class Operator:
         for expl in ind:
             if np.random.uniform() < self.mut_prob:
                 self.mut_expl(expl)
+        return ind,
 
     def mut_expllist(self, expllist):
         if random.choice([True, False]):
