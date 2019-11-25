@@ -51,9 +51,11 @@ class FitnessUtils:
         fp_card = [cls._cardinality(fp) for fp in fplist]
         xtp = reduce(lambda x, y: x ^ y, tplist)
         xfp = reduce(lambda x, y: x ^ y, fplist)
-        xtp_card = cls._cardinality(xtp)
-        xfp_card = cls._cardinality(xfp)
-        return (xtp_card + xfp_card) / (sum(tp_card) + sum(fp_card))
+        sum_card = (sum(tp_card) + sum(fp_card))
+        res = 0
+        if sum_card:
+            res = (cls._cardinality(xtp) + cls._cardinality(xfp)) / sum_card
+        return res
 
     def recall(self, expllist):
         tplist = self._tplist(expllist)
