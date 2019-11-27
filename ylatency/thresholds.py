@@ -46,8 +46,6 @@ class Hashtable:
         self.pos_traces = self._get_positives(df, frontend, from_, to)
         self.neg_traces = self._get_negatives(df, frontend, from_, to)
         self.backends = backends
-        #self.from_ = from_
-        #self.to = to
 
     # it returns a single hashtable where keys are pair (col, indexofthreshold)
     # and values are pairs (bitstring positives, bitstring negatives)
