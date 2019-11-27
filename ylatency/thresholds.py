@@ -42,18 +42,18 @@ class MSSelector:
 class Hashtable:
     def __init__(self, traces, backends,
                  frontend, from_, to):
-        self.traces = traces.toPandas()
-        self.frontend = frontend
+        df = traces.toPandas()
+        self.pos_traces = self._get_positives(df, frontend, from_, to)
+        self.neg_traces = self._get_negatives(df, frontend, from_, to)
         self.backends = backends
-        self.from_ = from_
-        self.to = to
+        #self.from_ = from_
+        #self.to = to
 
     # it returns a single hashtable where keys are pair (col, indexofthreshold)
     # and values are pairs (bitstring positives, bitstring negatives)
     def all_in_one(self, thr_dict):
-        pos = self._get_positives().count()[self.frontend]
-        cache = {'p': pos,
-                 'n': self.traces.count()[self.frontend] - pos}
+        cache = {'p': self._count_positives(),
+                 'n': self._count_negatives()}
 
         for b in self.backends:
             tp_intlist = self._create_tp(b, thr_dict[b])
@@ -81,23 +81,20 @@ class Hashtable:
                 hashtable[b, t] = bs
         return hashtable
 
-    def _get_positives(self):
-        df = self.traces
-        return df[(df[self.frontend] > self.from_) & (df[self.frontend] <= self.to)]
+    def _get_positives(self, df, frontend, from_, to):
+        return df[(df[frontend] > from_) & (df[frontend] <= to)]
 
-    def _get_negatives(self):
-        df = self.traces
-        return df[(df[self.frontend] <= self.from_) | (df[self.frontend] > self.to)]
+    def _get_negatives(self, df, frontend, from_, to):
+        return df[(df[frontend] <= from_) | (df[frontend] > to)]
 
     def _count_positives(self):
-        return self._get_positives().count()[self.frontend]
+        return len(self.pos_traces.index)
 
     def _count_negatives(self):
-        return self._get_negatives().count()[self.frontend]
+        return len(self.neg_traces.index)
 
     def _create_tp(self, backend, thresholds):
-        pos = self._get_positives()
-        return self._create_bitslists(pos, backend, thresholds)
+        return self._create_bitslists(self.pos_traces, backend, thresholds)
 
     def _create_bitslists(self, df, backend, thresholds):
         list_bitstring = []
@@ -108,5 +105,4 @@ class Hashtable:
         return list_bitstring
 
     def _create_fp(self, backend, thresholds):
-        neg = self._get_negatives()
-        return self._create_bitslists(neg, backend, thresholds)
+        return self._create_bitslists(self.neg_traces, backend, thresholds)
