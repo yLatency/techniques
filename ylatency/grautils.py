@@ -1,4 +1,5 @@
 from functools import reduce
+from statistics import pvariance, mean
 
 
 class FitnessUtils:
@@ -57,6 +58,23 @@ class FitnessUtils:
             res = (cls._cardinality(xtp) + cls._cardinality(xfp)) / sum_card
         return res
 
+    @classmethod
+    def _dissimilarity(cls, tplist, fplist, target_col_pos, target_col_neg):
+        dissimilarity = 0
+        reverse_bitstring = lambda bs: bin(bs).replace('0b', '')[::-1]
+        for tp, fp in zip(tplist, fplist):
+            reversed_tp = reverse_bitstring(tp)
+            reversed_fp = reverse_bitstring(fp)
+            values_tp = [val for bit, val in zip(reversed_tp, target_col_pos[::-1]) if bit == '1']
+            values_fp = [val for bit, val in zip(reversed_fp, target_col_neg[::-1]) if bit == '1']
+            values = values_tp + values_fp
+            if values:
+                mean_ = mean(values)
+                variability = sum((v - mean_)**2 for v in values)
+                dissimilarity += variability
+        return dissimilarity
+
+
     def recall(self, expllist):
         tplist = self._tplist(expllist)
         num_pos = self.pos_hashtable['cardinality']
@@ -80,3 +98,23 @@ class FitnessUtils:
         den = prec*rec + prec*disj + rec*disj
         num = 3*prec*rec*disj
         return num/den if den else 0
+
+    def fscore(self, expllist):
+        prec = self.precision(expllist)
+        rec = self.recall(expllist)
+        disj = self.disjointness(expllist)
+        den = prec + rec
+        if disj == 1 and den != 0:
+            score = (2 * prec * rec)/den
+        else:
+            score = 0
+        return score
+
+    def numclusters(self, expllist):
+        return len(expllist)
+
+    def dissimilarity(self, expllist):
+        tplist = self._tplist(expllist)
+        fplist = self._fplist(expllist)
+        return self._dissimilarity(tplist, fplist, self.pos_hashtable['target'], self.neg_hashtable['target'])
+

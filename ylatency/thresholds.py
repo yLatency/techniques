@@ -46,6 +46,7 @@ class Hashtable:
         self.pos_traces = self._get_positives(df, frontend, from_, to)
         self.neg_traces = self._get_negatives(df, frontend, from_, to)
         self.backends = backends
+        self.frontend = frontend
 
     # it returns a single hashtable where keys are pair (col, indexofthreshold)
     # and values are pairs (bitstring positives, bitstring negatives)
@@ -71,8 +72,16 @@ class Hashtable:
         return self._create_hashtable(thr_dict, positives=False)
 
     def _create_hashtable(self, thr_dict, positives=True):
-        hashtable = {'cardinality':  self._count_positives() if positives else self._count_negatives()}
-        create_bitstrings = self._create_tp if positives else self._create_fp
+        if positives:
+            count = self._count_positives
+            df = self.pos_traces
+            create_bitstrings = self._create_tp
+        else:
+            count = self._count_negatives
+            df = self.neg_traces
+            create_bitstrings = self._create_fp
+
+        hashtable = {'cardinality': count(), 'target': list(df[self.frontend])}
         for b in self.backends:
             bitstrings = create_bitstrings(b, thr_dict[b])
             for t, bs in zip(thr_dict[b], bitstrings):
