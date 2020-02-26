@@ -75,6 +75,20 @@ class FitnessUtils:
         return dissimilarity
 
 
+    @classmethod
+    def _sizesofclusters(cls, tplist, fplist, target_col_pos, target_col_neg):
+        sizes=[]
+        reverse_bitstring = lambda bs: bin(bs).replace('0b', '')[::-1]
+        for tp, fp in zip(tplist, fplist):
+            reversed_tp = reverse_bitstring(tp)
+            reversed_fp = reverse_bitstring(fp)
+            values_tp = [val for bit, val in zip(reversed_tp, target_col_pos[::-1]) if bit == '1']
+            values_fp = [val for bit, val in zip(reversed_fp, target_col_neg[::-1]) if bit == '1']
+            values = values_tp + values_fp
+            sizes.append(len(values))
+        return sizes
+
+
     def recall(self, expllist):
         tplist = self._tplist(expllist)
         num_pos = self.pos_hashtable['cardinality']
@@ -102,9 +116,8 @@ class FitnessUtils:
     def fscore(self, expllist):
         prec = self.precision(expllist)
         rec = self.recall(expllist)
-        disj = self.disjointness(expllist)
         den = prec + rec
-        if disj == 1 and den != 0:
+        if den != 0:
             score = (2 * prec * rec)/den
         else:
             score = 0
@@ -118,3 +131,13 @@ class FitnessUtils:
         fplist = self._fplist(expllist)
         return self._dissimilarity(tplist, fplist, self.pos_hashtable['target'], self.neg_hashtable['target'])
 
+
+    def sizesofclusters(self, expllist):
+        tplist = self._tplist(expllist)
+        fplist = self._fplist(expllist)
+        return self._sizesofclusters(tplist, fplist, self.pos_hashtable['target'], self.neg_hashtable['target'])
+
+    def feasible(self, expllist):
+        disj = self.disjointness(expllist)
+        num_pos = self.pos_hashtable['cardinality']
+        return disj == 1 and min(self.sizesofclusters(expllist)) >= num_pos * 0.05

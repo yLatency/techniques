@@ -29,6 +29,8 @@ class GeneticRangeAnalysis:
         toolbox.register("select", tools.selNSGA2)
         f = self._fitness
         toolbox.register("evaluate", lambda ind: (f.fscore(ind), f.dissimilarity(ind), f.numclusters(ind)))
+        toolbox.decorate("evaluate", tools.DeltaPenalty(f.feasible, (0, float('inf'), float('inf'))))
+
         self._ops.mut_prob = mut
 
         if stats:
