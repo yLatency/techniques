@@ -1,26 +1,25 @@
-from pyspark.sql import functions as f, SparkSession, DataFrame
-from datetime import datetime, timedelta, time
+from pyspark.sql import functions as f
 from functools import reduce
 
 
-def __loadExperimentSpans(from_, to, spark):
+def __loadExperimentSpans(from_, to, spark, index):
     fromTimestamp = int(from_.timestamp() * 1000000)
     toTimestamp = int(to.timestamp() * 1000000)
     return (spark.read.format("es")
-            .option("es.resource", "zipkin*")
+            .option("es.resource", index)
             .load()
             .select('traceId',
                     'experiment')
             .filter(f.col('timestamp').between(fromTimestamp, toTimestamp))
-            .filter(f.col('localEndpoint.serviceName') == 'web-service')
+            .filter(f.isnull('parentId'))
             .filter(f.col('kind') == 'SERVER'))
 
 
-def loadSpansByInterval(from_, to, spark):
+def loadSpansByInterval(from_, to, spark, index):
     fromTimestamp = int(from_.timestamp() * 1000000)
     toTimestamp = int(to.timestamp() * 1000000)
     return (spark.read.format("es")
-            .option("es.resource", "zipkin*")
+            .option("es.resource", index)
             .load()
             .select('traceId',
                     # f.concat_ws('_', *['localEndpoint.serviceName', 'name']).alias('endpoint'),
@@ -31,29 +30,6 @@ def loadSpansByInterval(from_, to, spark):
                     'timestamp',
                     'parentId')
             .filter(f.col('timestamp').between(fromTimestamp, toTimestamp)))
-
-
-def loadSpansByDay(day, spark):
-    return reduce(DataFrame.union,
-                  [loadSpansByInterval(from_, to, spark) for from_, to in __HoursOfTheDay(day)])
-
-
-class __HoursOfTheDay:
-    def __init__(self, date):
-        self.datetime = datetime.combine(date, time.min)
-        self.hour = 0
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.hour > 23:
-            raise StopIteration
-        else:
-            from_ = self.datetime + timedelta(hours=self.hour)
-            to = self.datetime + timedelta(hours=self.hour + 1) - timedelta(microseconds=1)
-            self.hour += 1
-            return from_, to
 
 
 def __createEndpointTraces(spans):
@@ -110,17 +86,16 @@ def __round_to_millis(traces):
                   traces)
 
 
-def create_avg_traces(from_, to, spark):
-    spans = loadSpansByInterval(from_, to, spark)
+def create_avg_traces(from_, to, spark, index):
+    spans = loadSpansByInterval(from_, to, spark, index)
     traces_micros = __createEndpointTraces(spans)
     traces_millis = __round_to_millis(traces_micros)
-    spans_exp = __loadExperimentSpans(from_, to, spark)
-
+    spans_exp = __loadExperimentSpans(from_, to, spark, index)
     return traces_millis.join(spans_exp, on='traceId')
 
 
-def create_sum_traces(from_, to, spark):
-    spans = loadSpansByInterval(from_, to, spark)
+def create_sum_traces(from_, to, spark, index):
+    spans = loadSpansByInterval(from_, to, spark, index)
     traces_micros = (spans.filter(spans.kind == 'SERVER')
                           .groupBy('traceId', 'endpoint')
                           .agg(f.sum('duration').alias('duration'))
@@ -128,6 +103,5 @@ def create_sum_traces(from_, to, spark):
                           .pivot('endpoint')
                           .agg(f.first('duration')))
     traces_millis = __round_to_millis(traces_micros)
-    spans_exp = __loadExperimentSpans(from_, to, spark)
-
+    spans_exp = __loadExperimentSpans(from_, to, spark, index)
     return traces_millis.join(spans_exp, on='traceId')
