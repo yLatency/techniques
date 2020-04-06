@@ -24,12 +24,12 @@ class GeneticRangeAnalysis:
 
     def explain(self, mu=100, lambda_=100, ngen=400, cp=0.6, mut=0.4, stats=False):
         toolbox = base.Toolbox()
-        creator.create("Fitness", base.Fitness, weights=(1.0, -1.0, -1.0))
+        creator.create("Fitness", base.Fitness, weights=(1.0, -1.0))
         self._initga(toolbox)
         toolbox.register("select", tools.selNSGA2)
         f = self._fitness
-        toolbox.register("evaluate", lambda ind: (f.fscore(ind), f.dissimilarity(ind), f.numclusters(ind)))
-        toolbox.decorate("evaluate", tools.DeltaPenalty(f.feasible, (0, float('inf'), float('inf'))))
+        toolbox.register("evaluate", lambda ind: (f.fscore(ind), f.dissimilarity(ind)))
+        toolbox.decorate("evaluate", tools.DeltaPenalty(f.feasible, (0, float('inf'))))
 
         self._ops.mut_prob = mut
 
