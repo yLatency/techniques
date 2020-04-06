@@ -139,5 +139,5 @@ class FitnessUtils:
 
     def feasible(self, expllist):
         disj = self.disjointness(expllist)
-        num_pos = self.pos_hashtable['cardinality']
-        return disj == 1 and min(self.sizesofclusters(expllist)) >= num_pos * 0.05
+        fscore = self.fscore(expllist)
+        return disj == 1 and fscore > 0.5
