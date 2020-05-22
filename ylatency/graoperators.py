@@ -8,8 +8,8 @@ class Operator:
     def __init__(self, thresholds_dict, mutprob=0.4):
         self.columns = list(thresholds_dict.keys())
         self.thresholds_dict = thresholds_dict
-        self.expl_maxsize = 3
-        self.explset_maxsize = 3
+        self.expl_maxsize = 1
+        self.explset_maxsize = 1
         self.mut_prob = mutprob
 
     def cond(self, col):
@@ -53,15 +53,26 @@ class Operator:
 
     def mut_split_expllist(self, expllist):
         t = self.thresholds_dict
-        candidates = [(e, c) for e in expllist for c in e if t[c[0]].index(c[2]) - t[c[0]].index(c[1]) > 1]
-        if candidates:
-            expl, cond = random.choice(candidates)
-            cond1, cond2 = self.split_cond(cond)
-            expl1 = [cond1 if c == cond else c for c in expl]
-            expl2 = [cond2 if c == cond else c for c in expl]
-            expllist.insert(expllist.index(expl), expl1)
-            expllist.insert(expllist.index(expl), expl2)
-            expllist.remove(expl)
+        if expllist:
+            expl = random.choice(expllist)
+            col = random.choice(self.columns)
+            conds = [c for c in expl if c[0] == col]
+            if conds and t[col].index(conds[0][2]) - t[col].index(conds[0][1]) > 1:
+                cond = conds[0]
+                cond1, cond2 = self.split_cond(cond)
+                expl1 = [cond1 if c == cond else c for c in expl]
+                expl2 = [cond2 if c == cond else c for c in expl]
+                expllist.insert(expllist.index(expl), expl1)
+                expllist.insert(expllist.index(expl), expl2)
+                expllist.remove(expl)
+            elif len(t[col]) > 2:
+                cond1 = (col, t[col][0], random.choice(t[col][1:-1]))
+                cond2 = (col, random.choice(t[col][1:-1]), t[col][-1])
+                expl1 = expl + [cond1]
+                expl2 = expl + [cond2]
+                expllist.insert(expllist.index(expl), expl1)
+                expllist.insert(expllist.index(expl), expl2)
+                expllist.remove(expl)
 
     def split_cond(self, cond):
         t = self.thresholds_dict
@@ -71,10 +82,10 @@ class Operator:
         return cond1, cond2
 
     def mut_expl(self, expl):
-        choice = random.choice([True, False])
-        if choice and len(expl) > 1:
+        choice = random.randrange(2)
+        if choice == 0 and len(expl) > 1:
             expl.remove(random.choice(expl))
-        else:
+        elif choice == 1:
             self.mut_expl_addcond(expl)
 
     def mut_expl_addcond(self, expl):
