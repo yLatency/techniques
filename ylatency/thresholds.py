@@ -1,43 +1,53 @@
-from functools import reduce
+from functools import reduce, partial
+from os import cpu_count
 
-from sklearn.cluster import MeanShift, estimate_bandwidth
-import numpy as np
-from operator import itemgetter, add
+from sklearn.cluster import MeanShift
+from operator import add
+
+from multiprocessing import get_context
 
 
 class MSSelector:
     def __init__(self, traces, bandwidth=None, min_bin_freq=1):
         self.traces = traces
-        self.ms = MeanShift(bandwidth=bandwidth,
-                            bin_seeding=True,
-                            min_bin_freq=min_bin_freq)
+        self.bandwidth = bandwidth
+        self.min_bin_freq = min_bin_freq
 
-    def _select(self, X):
-        self.ms.fit(X)
+    @staticmethod
+    def _select(X, bandwidth=None, min_bin_freq=1):
+        min_ = min(x[0] for x in X)
+        max_ = max(x[0] for x in X)
+        if min_ == max_:
+            return [min_, min_ + 1]
+
+        ms = MeanShift(bandwidth=bandwidth, bin_seeding=True, min_bin_freq=min_bin_freq)
+        ms.fit(X)
         split_points = {}
         for x in X:
-            label = self.ms.predict([x])[0]
+            label = ms.predict([x])[0]
             val = x[0]
             if label not in split_points:
                 split_points[label] = val
             else:
                 split_points[label] = min(val, split_points[label])
         sp = list(split_points.values())
-        sp += [X.max() + 1]
+        sp += [max_ + 1]
         return sorted(sp)
 
     def select(self, col):
-        it = map(itemgetter(col), self.traces.select(col).collect())
-        X = np.fromiter(it, float).reshape(-1, 1)
-        if X.min() == X.max():
-            sp = [X.min(), X.min()+1]  # Avoid bug bin_seeding
-        else:
-            sp = self._select(X)
-        return sp
+        X = [[row[col]] for row in self.traces.select(col).collect()]
+        return self._select(X, self.bandwidth, self.min_bin_freq)
 
-    def select_foreach(self, cols):
-        return {c: self.select(c) for c in cols}
+    def select_foreach(self, cols, parallel=True):
+        return self.select_parallel(cols) if parallel else {c: self.select(c) for c in cols}
 
+    def select_parallel(self, cols):
+        exectimes = [[[row[c]] for row in self.traces.select(c).collect()] for c in cols]
+        processes = min(len(cols), cpu_count())
+        fun = partial(MSSelector._select, bandwidth=self.bandwidth, min_bin_freq=self.min_bin_freq)
+        with get_context("spawn").Pool(processes) as pool:
+            thresholds = pool.map(fun, exectimes)
+            return {rpc: _thresholds for rpc, _thresholds in zip(cols, thresholds)}
 
 class Hashtable:
     def __init__(self, traces, backends,
