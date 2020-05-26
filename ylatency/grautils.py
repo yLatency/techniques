@@ -1,6 +1,5 @@
 from functools import reduce
-from statistics import pvariance, mean
-
+from statistics import mean
 
 class FitnessUtils:
     def __init__(self, backends, pos_hashtable, neg_hashtable):
@@ -48,15 +47,27 @@ class FitnessUtils:
 
     @classmethod
     def _disjointness(cls, tplist, fplist):
-        tp_card = [cls._cardinality(tp) for tp in tplist]
-        fp_card = [cls._cardinality(fp) for fp in fplist]
-        xtp = reduce(lambda x, y: x ^ y, tplist)
-        xfp = reduce(lambda x, y: x ^ y, fplist)
-        sum_card = (sum(tp_card) + sum(fp_card))
-        res = 0
-        if sum_card:
-            res = (cls._cardinality(xtp) + cls._cardinality(xfp)) / sum_card
-        return res
+        disj = uniqreq = 0
+        totreq = sum(map(cls._cardinality, tplist + fplist))
+        if totreq > 0 and len(tplist) == len(fplist):
+            for i, _ in enumerate(tplist):
+                uniqreq += cls._countuniq(i, tplist) + cls._countuniq(i, fplist)
+            disj = uniqreq/totreq
+        return disj
+
+    @classmethod
+    def _countuniq(cls, i, support_list):
+        """
+        Counts requests identified by the explanation under analysis but not by other explanations in expllist
+        :param i: index of the explanation under analysis
+        :param support_list: list of supports (bitstrings) (i.e. identified requests for each explanation)
+        :return: number of requests identified by the explanation under analysis but not by other explanations
+        """
+        uniq = support_list[i]
+        for j, supp in enumerate(support_list):
+            if j != i:
+                uniq &= ~supp
+        return cls._cardinality(uniq)
 
     @classmethod
     def _dissimilarity(cls, tplist, fplist, target_col_pos, target_col_neg):
@@ -123,6 +134,17 @@ class FitnessUtils:
             score = 0
         return score
 
+    def betafscore(self, expllist, beta):
+        prec = self.precision(expllist)
+        rec = self.recall(expllist)
+        den = (beta**2 * prec) + rec
+        if den != 0:
+            score = (1 + beta**2)*((prec * rec)/den)
+        else:
+            score = 0
+        return score
+
+
     def numclusters(self, expllist):
         return len(expllist)
 
@@ -138,6 +160,13 @@ class FitnessUtils:
         return self._sizesofclusters(tplist, fplist, self.pos_hashtable['target'], self.neg_hashtable['target'])
 
     def feasible(self, expllist):
-        disj = self.disjointness(expllist)
-        fscore = self.fscore(expllist)
-        return disj == 1 and fscore > 0.5
+        return reduce(lambda b, expl: b and self.recall([expl]) > 0.2, expllist, True)
+
+    def prec_rec_diss(self, expllist):
+        return self.precision(expllist), self.recall(expllist), self.dissimilarity(expllist)
+
+    def evaluate(self, expllist):
+        fitness = (0, 0, float('inf'))
+        if self.feasible(expllist):
+            fitness = self.prec_rec_diss(expllist)
+        return fitness

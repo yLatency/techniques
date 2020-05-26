@@ -91,12 +91,14 @@ class TestFitnessUtils(TestCase):
     def test_disjointess_zero(self):
         tp1 = int('10', base=2)
         tp2 = int('10', base=2)
+        tp3 = int('10', base=2)
 
         fp1 = int('10', base=2)
         fp2 = int('10', base=2)
+        fp3 = int('10', base=2)
 
-        tplist = [tp1, tp2]
-        fplist = [fp1, fp2]
+        tplist = [tp1, tp2, tp3]
+        fplist = [fp1, fp2, fp3]
 
         res = FitnessUtils._disjointness(tplist, fplist)
         self.assertEqual(0, res)
@@ -117,12 +119,14 @@ class TestFitnessUtils(TestCase):
     def test_disjointess_one(self):
         tp1 = int('10', base=2)
         tp2 = int('01', base=2)
+        tp3 = int('00', base=2)
 
         fp1 = int('10', base=2)
         fp2 = int('01', base=2)
+        fp3 = int('00', base=2)
 
-        tplist = [tp1, tp2]
-        fplist = [fp1, fp2]
+        tplist = [tp1, tp2, tp3]
+        fplist = [fp1, fp2, fp3]
 
         res = FitnessUtils._disjointness(tplist, fplist)
         self.assertEqual(1, res)
