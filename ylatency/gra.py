@@ -1,6 +1,5 @@
 import copy
 from math import ceil
-from multiprocessing.pool import Pool
 from multiprocessing import get_context
 from os import cpu_count
 
@@ -71,6 +70,15 @@ class GeneticRangeAnalysis:
                                                  stats=stats, halloffame=hof, verbose=verbose)
         return hof, logbook
 
+    def _best_betafscore(self, pareto, beta):
+        fscores = [self._fitness.betafscore(ind, beta) for ind in pareto]
+        max_ = max(fscores)
+        bests = [ind for ind, fscore in zip(pareto, fscores) if fscore == max_]
+        return bests[0] if len(bests) == 1 else min(bests, key=self._fitness.dissimilarity)
+
+    def best(self, pareto):
+        bests = [self._best_betafscore(pareto, i/100) for i in range(10, 101)]
+        return min(bests, key=self._fitness.dissimilarity)
 
     def explain(self, mu=30, lambda_=30, ngen=300, cp=0.6, mut=0.4, stats=False, verbose=False, parallel=True):
         explain_ = self._explain_parallel if parallel else self._explain_sequential
