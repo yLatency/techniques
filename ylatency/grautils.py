@@ -160,7 +160,7 @@ class FitnessUtils:
         return self._sizesofclusters(tplist, fplist, self.pos_hashtable['target'], self.neg_hashtable['target'])
 
     def feasible(self, expllist):
-        return reduce(lambda b, expl: b and self.recall([expl]) > 0.2, expllist, True)
+        return reduce(lambda b, expl: b and self.recall([expl]) > 0.05, expllist, True)
 
     def prec_rec_diss(self, expllist):
         return self.precision(expllist), self.recall(expllist), self.dissimilarity(expllist)
