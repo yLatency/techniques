@@ -1,7 +1,7 @@
 from functools import reduce, partial
 from os import cpu_count
 
-from sklearn.cluster import MeanShift
+from sklearn.cluster import MeanShift, estimate_bandwidth
 from operator import add
 
 from multiprocessing import get_context
@@ -19,18 +19,22 @@ class MSSelector:
         max_ = max(x[0] for x in X)
         if min_ == max_:
             return [min_, min_ + 1]
-
+        if bandwidth is None:
+            bandwidth = estimate_bandwidth(X, quantile=0.1)
         ms = MeanShift(bandwidth=bandwidth, bin_seeding=True, min_bin_freq=min_bin_freq)
-        ms.fit(X)
-        split_points = {}
-        for x in X:
-            label = ms.predict([x])[0]
-            val = x[0]
-            if label not in split_points:
-                split_points[label] = val
-            else:
-                split_points[label] = min(val, split_points[label])
-        sp = list(split_points.values())
+        try:
+            ms.fit(X)
+            split_points = {}
+            for x in X:
+                label = ms.predict([x])[0]
+                val = x[0]
+                if label not in split_points:
+                    split_points[label] = val
+                else:
+                    split_points[label] = min(val, split_points[label])
+            sp = list(split_points.values())
+        except:
+            sp = [min_]
         sp += [max_ + 1]
         return sorted(sp)
 
