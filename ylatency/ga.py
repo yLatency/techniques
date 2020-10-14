@@ -48,7 +48,7 @@ class GAImpl:
         self.toolbox.register("evaluate", evaluate)
         self.toolbox.decorate("evaluate", tools.DeltaPenalty(self.ops.feasible, 0.0))
 
-    def compute(self, popSize=30, maxGen=300, mutProb=0.2, stats=False):
+    def compute(self, popSize=30, maxGen=300, mutProb=0.4, stats=False):
         if stats:
             stats = tools.Statistics()
             stats.register("pop", copy.deepcopy)
